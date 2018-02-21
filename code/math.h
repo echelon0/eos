@@ -459,12 +459,18 @@ view_transform(vec3 position, vec3 direction, vec3 up) {
     vec3 forward = normalize(direction);
     vec3 right = normalize(cross(up, forward)); 
 
-    mat44 result = mat44(right.x,   right.y,   right.z,   -position.x,
-                         up.x,      up.y,      up.z,      -position.y,
-                         forward.x, forward.y, forward.z, -position.z,
-                         0.0f,      0.0f,      0.0f,       1.0f);
+    
+    mat44 translation = mat44(1.0f, 0.0f, 0.0f, -position.x,
+                              0.0f, 1.0f, 0.0f, -position.y,
+                              0.0f, 0.0f, 1.0f, -position.z,
+                              0.0f, 0.0f, 0.0f,  1.0f);
 
-    return result;
+    mat44 orientation = mat44(right.x,   right.y,   right.z,   0.0f,
+                              up.x,      up.y,      up.z,      0.0f,
+                              forward.x, forward.y, forward.z, 0.0f,
+                              0.0f,      0.0f,      0.0f,      1.0f);
+
+    return orientation * translation;
 }
 
 static mat44

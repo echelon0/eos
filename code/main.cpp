@@ -157,7 +157,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
             if(init_D3D(window, directx)) {
                 Array<StaticModel> all_models;
-                StaticModel test_model = load_obj("../assets/models/dragon2.OBJ");
+                StaticModel test_model = load_obj("../assets/models/dragon1.OBJ");
                 all_models.push_back(test_model);
                 set_vertex_buffer(directx, all_models);
                     

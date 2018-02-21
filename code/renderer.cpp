@@ -114,10 +114,10 @@ bool set_constant_buffer(D3D_RESOURCE *directx) {
     }
     
     if(global_input.RIGHT_ARROW) {
-        rotate(&directx->camera.direction, -0.01f, Y_AXIS);
+        rotate(&directx->camera.direction, 0.01f, Y_AXIS);
     }
     if(global_input.LEFT_ARROW) {
-        rotate(&directx->camera.direction, 0.01f, Y_AXIS);
+        rotate(&directx->camera.direction, -0.01f, Y_AXIS);
     }    
     
     
@@ -245,7 +245,7 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
         
         D3D11_RASTERIZER_DESC raster_desc = {};
         raster_desc.FillMode = D3D11_FILL_SOLID;
-        raster_desc.CullMode = D3D11_CULL_FRONT;
+        raster_desc.CullMode = D3D11_CULL_BACK;
         raster_desc.FrontCounterClockwise = true;
         raster_desc.DepthBias = 0;
         raster_desc.DepthBiasClamp = 0;

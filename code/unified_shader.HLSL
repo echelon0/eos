@@ -19,10 +19,10 @@ struct VOutput {
 
 VOutput vs_main(VInput input) {
     VOutput output;
-    output.position = float4(input.position.x, input.position.y, input.position.z, 1.0f);
+    output.position = float4(input.position.x, -input.position.y, input.position.z, 1.0f);
     output.position = mul(output.position, view_matrix);
     output.position = mul(output.position, transpose(projection_matrix));
-    output.normal = input.normal;
+    output.normal = float3(input.normal.x, -input.normal.y, input.normal.z);
     output.texcoord = input.texcoord;
     
     return output;
