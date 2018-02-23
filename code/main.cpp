@@ -1,6 +1,7 @@
 
 /*
   TODO:
+  - Object picking
   - Camera translation/orientation with mouse input
   - Realtime shader compilation
   - Line sweep ambient obscurance
