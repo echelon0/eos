@@ -12,12 +12,12 @@
 #define LOG_ERROR(Message) MessageBoxA(0, Message, "ERROR", MB_OK|MB_ICONERROR)
 
 #include <windows.h>
+#include <Windowsx.h>
 #include <D3Dcompiler.h>
 #include <D3D11.h>
 #include <stdio.h>
 #include "math.h"
 #include "array.h"
-
 
 struct INPUT_STATE {
     bool W_KEY;
@@ -28,12 +28,20 @@ struct INPUT_STATE {
     bool DOWN_ARROW;
     bool LEFT_ARROW;
     bool RIGHT_ARROW;
+
+    bool LEFT_MOUSE_BUTTON;
+    bool LEFT_MOUSE_BUTTON_RELEASED;
+    ivec2 DOWN_POS;
+    ivec2 CURRENT_POS;
+    ivec2 DRAG_VECTOR;
+    bool CLICKED;
 };
 
 static bool global_is_running;
 static INPUT_STATE global_input;
 
 #include "renderer.cpp"
+#include "editor.cpp"
 #include "file_loader.cpp"
 
 LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
@@ -111,6 +119,20 @@ LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPara
                     break;
             }
         } break;
+
+        case WM_LBUTTONDOWN: {
+            if(!global_input.LEFT_MOUSE_BUTTON) {
+                global_input.DOWN_POS.x = GET_X_LPARAM(lParam); 
+                global_input.DOWN_POS.x = GET_Y_LPARAM(lParam);
+            }
+            global_input.LEFT_MOUSE_BUTTON = true;
+        } break;
+            
+        case WM_LBUTTONUP: {
+            global_input.CURRENT_POS.x = GET_X_LPARAM(lParam); 
+            global_input.CURRENT_POS.x = GET_Y_LPARAM(lParam);      
+            global_input.LEFT_MOUSE_BUTTON_RELEASED = true;
+        } break;
             
         default: {
             result = DefWindowProc(hWnd, Msg, wParam, lParam);
@@ -118,6 +140,26 @@ LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPara
     }
     
     return result;
+}
+
+void input_analysis() {
+    if(global_input.LEFT_MOUSE_BUTTON) {
+        global_input.DRAG_VECTOR = global_input.CURRENT_POS - global_input.DOWN_POS;
+        
+        if(global_input.LEFT_MOUSE_BUTTON_RELEASED && global_input.DRAG_VECTOR == ivec2(0, 0)) {
+            //NOTE(Alex): CLICKED is defined as a left mouse button down followed by
+            //            a release in which the cursor stayed in the same position.
+            global_input.CLICKED = true; 
+        }
+    }
+}
+
+void reset_input() {
+    if(global_input.LEFT_MOUSE_BUTTON && global_input.LEFT_MOUSE_BUTTON_RELEASED) {
+        global_input.LEFT_MOUSE_BUTTON = false;
+        global_input.LEFT_MOUSE_BUTTON_RELEASED = false;
+    }
+    global_input.CLICKED = false;
 }
 
 ivec2 CalcWindowPos(int window_width, int window_height) {
@@ -164,14 +206,17 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     
                 global_is_running = true;
                 while(global_is_running) {
-                    set_constant_buffer(directx);
-                    DrawFrame(directx);
-
                     MSG message;
                     while(PeekMessage(&message, window, 0, 0, PM_REMOVE)) {
                         TranslateMessage(&message);
                         DispatchMessage(&message);
                     }
+                    input_analysis();
+                    
+                    set_constant_buffer(directx);
+                    draw_frame(directx);
+                    
+                    reset_input();
                 }
             } 
         }

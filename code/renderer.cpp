@@ -9,6 +9,11 @@ struct StaticModel {
     Array<VertexAttribute> vertices;
 };
 
+struct Entity {
+    unsigned int ID;
+    StaticModel model;
+};
+
 struct Camera {
     vec3 position;
     vec3 direction;
@@ -41,8 +46,10 @@ struct D3D_RESOURCE {
     int vertex_count;
 };
 
-void DrawFrame(D3D_RESOURCE *directx) {
+void draw_frame(D3D_RESOURCE *directx) {
     FLOAT color[] = {0.788f, 0.867f, 1.0f, 1.0f};
+    
+
     directx->immediate_context->ClearRenderTargetView(directx->render_target, color);
     directx->immediate_context->ClearDepthStencilView(directx->depth_stencil_view, D3D11_CLEAR_DEPTH, 1.0f, 0);
                     

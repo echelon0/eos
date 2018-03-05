@@ -20,6 +20,10 @@ struct ivec2 {
         this->x = x;
         this->y = y;
     }
+
+    bool operator == (ivec2 rhs) {
+        return (this->x == rhs.x) && (this->y == rhs.y);
+    }
 };
 
 
@@ -35,6 +39,10 @@ struct vec2 {
     vec2(float x, float y) {
         this->x = x;
         this->y = y;
+    }
+
+    bool operator == (vec2 rhs) {
+        return (this->x == rhs.x) && (this->y == rhs.y);
     }
 };
 
@@ -68,6 +76,10 @@ struct vec3 {
         this->z -= rhs.z;
         return *this;
     }
+
+    bool operator == (vec3 rhs) {
+        return (this->x == rhs.x) && (this->y == rhs.y) && (this->z == rhs.z);
+    }
 };
 
 struct vec4 {
@@ -88,6 +100,10 @@ struct vec4 {
         this->y = y;
         this->z = z;
         this->w = w;
+    }
+    
+    bool operator == (vec4 rhs) {
+        return (this->x == rhs.x) && (this->y == rhs.y) && (this->z == rhs.z) && (this->w == rhs.w);
     }
 };
 
@@ -137,7 +153,64 @@ struct mat44 {
         return *this;
     }
 
+    bool operator == (mat44 rhs) {
+        for(int i = 0; i < 4; i++) {
+            for(int j = 0; j < 4; j++) {
+                if(this->data[i][j] != rhs.data[i][j])
+                    return false;
+            }
+        }
+        return true;
+    }
 };
+
+inline ivec2
+operator - (ivec2 lhs, ivec2 rhs) {
+    ivec2 result;
+    result.x = lhs.x - rhs.x;
+    result.y = lhs.y - rhs.y;
+    return result;
+}
+
+inline vec2
+operator * (vec2 vector, float scaler) {
+    vec2 result;
+    result.x = vector.x * scaler;
+    result.y = vector.y * scaler;
+    return result;
+}
+
+inline vec2
+operator * (float scaler, vec2 vector) {
+    vec2 result;
+    result.x = vector.x * scaler;
+    result.y = vector.y * scaler;
+    return result;
+}
+
+inline vec2
+operator / (vec2 vector, float scaler) {
+    vec2 result;
+    result.x = vector.x / scaler;
+    result.y = vector.y / scaler;
+    return result;    
+}
+
+inline vec2
+operator + (vec2 lhs, vec2 rhs) {
+    vec2 result;
+    result.x = lhs.x + rhs.x;
+    result.y = lhs.y + rhs.y;
+    return result;    
+}
+
+inline vec2
+operator - (vec2 lhs, vec2 rhs) {
+    vec2 result;
+    result.x = lhs.x - rhs.x;
+    result.y = lhs.y - rhs.y;
+    return result;    
+}
 
 inline vec3
 operator * (vec3 vector, float scaler) {
@@ -485,3 +558,7 @@ perspective(float FOV, float aspect, float z_near, float z_far) {
     return result;
 }
 
+inline vec2
+lerp(vec2 a, vec2 b, float t) {
+    return t*b + (1-t)*a;
+}
