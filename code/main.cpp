@@ -123,14 +123,14 @@ LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPara
         case WM_LBUTTONDOWN: {
             if(!global_input.LEFT_MOUSE_BUTTON) {
                 global_input.DOWN_POS.x = GET_X_LPARAM(lParam); 
-                global_input.DOWN_POS.x = GET_Y_LPARAM(lParam);
+                global_input.DOWN_POS.y = GET_Y_LPARAM(lParam);
             }
             global_input.LEFT_MOUSE_BUTTON = true;
         } break;
             
         case WM_LBUTTONUP: {
             global_input.CURRENT_POS.x = GET_X_LPARAM(lParam); 
-            global_input.CURRENT_POS.x = GET_Y_LPARAM(lParam);      
+            global_input.CURRENT_POS.y = GET_Y_LPARAM(lParam);      
             global_input.LEFT_MOUSE_BUTTON_RELEASED = true;
         } break;
             
@@ -172,9 +172,8 @@ ivec2 CalcWindowPos(int window_width, int window_height) {
 }
 
 int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-    int window_width  = 960;
-    int window_height = 580;
-    ivec2 window_pos = CalcWindowPos(window_width, window_height);
+    ivec2 window_dim = ivec2(960, 580);
+    ivec2 window_pos = CalcWindowPos(window_dim.x, window_dim.y);
     float frame_rate  = 60.0f;
     
     WNDCLASS window_class = {};
@@ -190,17 +189,23 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             "Eos",
             WS_VISIBLE|WS_OVERLAPPEDWINDOW,
             window_pos.x, window_pos.y,
-            window_width, window_height,
+            window_dim.x, window_dim.y,
             0, 0,
             hInstance, 0);
         
         if(window) {
+            RECT client_rect;
+            GetClientRect(window, &client_rect);
+            ivec2 client_dim = ivec2(client_rect.right, client_rect.bottom);
             global_input = {};
             D3D_RESOURCE *directx = (D3D_RESOURCE *)malloc(sizeof(*directx));
 
             if(init_D3D(window, directx)) {
                 Array<StaticModel> all_models;
                 StaticModel test_model = load_obj("../assets/models/dragon1.OBJ");
+                Entity test_entity = {0, test_model};
+                Array<Entity> entities;
+                entities.push_back(test_entity);
                 all_models.push_back(test_model);
                 set_vertex_buffer(directx, all_models);
                     
@@ -212,7 +217,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         DispatchMessage(&message);
                     }
                     input_analysis();
-                    
+                    if(global_input.CLICKED) {
+                        get_picked_entity_index(directx->camera.position, global_input.CURRENT_POS, client_dim, 45.0f, 16.0f/9.0f, entities);
+                    }
                     set_constant_buffer(directx);
                     draw_frame(directx);
                     

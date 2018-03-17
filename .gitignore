@@ -2,3 +2,6 @@
 Browse.VC.db
 Browse.VC.opendb
 MAIN.ipch
+*.exe
+*.obj
+*.pdb
