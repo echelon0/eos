@@ -107,6 +107,54 @@ struct vec4 {
     }
 };
 
+struct mat33 {
+    float data[3][3];
+    
+    mat33() {
+        for(int i = 0; i < 4; i++) {
+            for(int j = 0; j < 4; j++) {
+                this->data[i][j] = 0.0f;
+            }
+        }
+    }
+    
+    mat33(float entry_11, float entry_12, float entry_13,
+          float entry_21, float entry_22, float entry_23,
+          float entry_31, float entry_32, float entry_33) {
+
+        this->data[0][0] = entry_11;
+        this->data[0][1] = entry_12;
+        this->data[0][2] = entry_13;
+
+        this->data[1][0] = entry_21;
+        this->data[1][1] = entry_22;
+        this->data[1][2] = entry_23;
+        
+        this->data[2][0] = entry_31;
+        this->data[2][1] = entry_32;
+        this->data[2][2] = entry_33;
+    }
+    
+    mat33 operator = (mat33 rhs) {
+        for(int i = 0; i < 3; i++) {
+            for(int j = 0; j < 3; j++) {
+                this->data[i][j] = rhs.data[i][j];
+            }
+        }
+        return *this;
+    }
+
+    bool operator == (mat33 rhs) {
+        for(int i = 0; i < 3; i++) {
+            for(int j = 0; j < 3; j++) {
+                if(this->data[i][j] != rhs.data[i][j])
+                    return false;
+            }
+        }
+        return true;
+    }
+};
+
 struct mat44 {
     float data[4][4];
     
@@ -350,6 +398,15 @@ operator * (float scalar, mat44 matrix) {
     return result;
 }
 
+inline vec3
+operator * (vec3 vector, mat33 matrix) {
+    vec3 result;
+    result.x = vector.x * matrix.data[0][0] + vector.y * matrix.data[1][0] + vector.z * matrix.data[2][0];
+    result.y = vector.x * matrix.data[0][1] + vector.y * matrix.data[1][1] + vector.z * matrix.data[2][1];
+    result.z = vector.x * matrix.data[0][2] + vector.y * matrix.data[1][2] + vector.z * matrix.data[2][2];
+    return result;
+}
+
 // NOTE(Alex): Assumes the matrix's fourth column is set to (0, 0, 0, 1) for accurate results.
 inline vec4
 operator * (vec4 vector, mat44 matrix) {
@@ -515,6 +572,17 @@ make_scaling_matrix(float x, float y, float z, float w) {
                  0.0f, 0.0f, 0.0f, z);   
 }
 
+static mat33
+transpose(mat33 matrix) {
+    mat33 result;
+    for(int i = 0; i < 3; ++i) {
+        for(int j = 0; j < 3; ++j) {
+            result.data[i][j] = matrix.data[j][i];
+        }       
+    }
+    return result;
+}
+
 static mat44
 transpose(mat44 matrix) {
     mat44 result;
@@ -562,3 +630,35 @@ inline vec2
 lerp(vec2 a, vec2 b, float t) {
     return t*b + (1-t)*a;
 }
+
+//TODO: create an accelerated version of this function
+inline bool
+ray_intersects_triangle(vec3 ro, vec3 rd, vec3 v0, vec3 v1, vec3 v2, vec3 &intersection) {
+    intersection = vec3();
+    float epsilon = 0.00001f;
+    vec3 edge1 = v1 - v0;
+    vec3 edge2 = v2 - v0;
+    vec3 q = cross(rd, edge2);
+    float a = dot(edge1, q);
+    if(a > -epsilon && a < epsilon) 
+        return false;
+    
+    float f = 1 / a;
+    vec3 s = ro - v0;
+    float u = f * dot(s, q);
+    if(u < 0.0f)
+        return false;
+    
+    vec3 r = cross(s, edge1);
+    float v = f * dot(rd, r);
+    if(v < 0.0f || u + v > 1.0f)
+        return false;
+    
+    float t = f * dot(edge2, r);
+    intersection = ro + rd * t;
+    return true;
+}
+
+
+
+

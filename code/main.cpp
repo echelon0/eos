@@ -142,7 +142,7 @@ LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPara
     return result;
 }
 
-void input_analysis() {
+void process_input() {
     if(global_input.LEFT_MOUSE_BUTTON) {
         global_input.DRAG_VECTOR = global_input.CURRENT_POS - global_input.DOWN_POS;
         
@@ -162,18 +162,13 @@ void reset_input() {
     global_input.CLICKED = false;
 }
 
-ivec2 CalcWindowPos(int window_width, int window_height) {
-    ivec2 pos;
-    int screen_width = GetSystemMetrics(SM_CXSCREEN);
-    int screen_height = GetSystemMetrics(SM_CYSCREEN);
-    pos.y = (screen_height - window_height) / 2;
-    pos.x = (screen_width - window_width) / 2;
-    return pos;
-}
-
 int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     ivec2 window_dim = ivec2(960, 580);
-    ivec2 window_pos = CalcWindowPos(window_dim.x, window_dim.y);
+    ivec2 window_pos;
+    int screen_width = GetSystemMetrics(SM_CXSCREEN);
+    int screen_height = GetSystemMetrics(SM_CYSCREEN);
+    window_pos.y = (screen_height - window_dim.y) / 2;
+    window_pos.x = (screen_width - window_dim.x) / 2;
     float frame_rate  = 60.0f;
     
     WNDCLASS window_class = {};
@@ -216,9 +211,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         TranslateMessage(&message);
                         DispatchMessage(&message);
                     }
-                    input_analysis();
+                    process_input();
                     if(global_input.CLICKED) {
-                        get_picked_entity_index(directx->camera.position, global_input.CURRENT_POS, client_dim, 45.0f, 16.0f/9.0f, entities);
+                        editor::get_picked_entity_index(directx->camera, vec3(0.0f, 1.0f, 0.0f), global_input.CURRENT_POS, client_dim, 45.0f, 16.0f/9.0f, entities);
                     }
                     set_constant_buffer(directx);
                     draw_frame(directx);

@@ -93,7 +93,7 @@ StaticModel load_obj(char *path) {
             temp_vertices[1].normal = temp_vertices[0].normal;
             temp_vertices[2].normal = temp_vertices[0].normal;
             for(int i = 0; i < 3; i++) {
-                loaded_model.vertices.push_back(temp_vertices[i]);
+                loaded_model.vertex_attributes.push_back(temp_vertices[i]);
             }
         }
     }

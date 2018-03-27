@@ -6,7 +6,7 @@ struct VertexAttribute {
 };
 
 struct StaticModel {
-    Array<VertexAttribute> vertices;
+    Array<VertexAttribute> vertex_attributes;
 };
 
 struct Entity {
@@ -35,8 +35,10 @@ struct D3D_RESOURCE {
     ID3D11RenderTargetView *render_target;
     D3D11_VIEWPORT viewport;
     ID3D11VertexShader *vertex_shader;
+    ID3D11GeometryShader *geometry_shader;    
     ID3D11PixelShader *pixel_shader;
     ID3D11Buffer *vertex_buffer;
+    ID3D11Buffer *so_buffer;
     ID3D11Buffer *constant_buffer;
     ID3D11RasterizerState *rasterizer_state;
     ID3D11Texture2D *depth_stencil_texture;
@@ -71,8 +73,8 @@ bool set_vertex_buffer(D3D_RESOURCE *directx, Array<StaticModel> models) {
     Array<VertexAttribute> all_vertices;
 
     for(int model_index = 0; model_index < models.size; model_index++) {
-        for(int i = 0; i < models[model_index].vertices.size; i++) {
-            all_vertices.push_back(models[model_index].vertices[i]);
+        for(int i = 0; i < models[model_index].vertex_attributes.size; i++) {
+            all_vertices.push_back(models[model_index].vertex_attributes[i]);
         }
     }
 
@@ -217,21 +219,46 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
 
     // load shaders
     ID3DBlob *vs_blob = (ID3DBlob *)malloc(sizeof(*vs_blob));
+    ID3DBlob *gs_blob = (ID3DBlob *)malloc(sizeof(*gs_blob));
     ID3DBlob *ps_blob = (ID3DBlob *)malloc(sizeof(*ps_blob));
     HRESULT compile_vs_hr = D3DCompileFromFile(L"../code/unified_shader.HLSL", 0, 0, "vs_main", "vs_4_0", 0, 0, &vs_blob, 0);
+    HRESULT compile_gs_hr = D3DCompileFromFile(L"../code/unified_shader.HLSL", 0, 0, "gs_main", "gs_4_0", 0, 0, &gs_blob, 0);
     HRESULT compile_ps_hr = D3DCompileFromFile(L"../code/unified_shader.HLSL", 0, 0, "ps_main", "ps_4_0", 0, 0, &ps_blob, 0);
     if(FAILED(compile_vs_hr)) {
         LOG_ERROR("Cannot compile vertex shader");
-        if(FAILED(compile_ps_hr)) {
-            LOG_ERROR("Cannot compile pixel shader");
+        if(FAILED(compile_gs_hr)) {
+            LOG_ERROR("Cannot compile geometry shader");
+            if(FAILED(compile_ps_hr)) {
+                LOG_ERROR("Cannot compile pixel shader"); 
+            }
         }
         return false;
     }
 
+    D3D11_SO_DECLARATION_ENTRY SO_input_signature[] = {
+        {0, "SV_POSITION", 0, 0, 4, 0},   // position
+        {0, "TEXCOORD0", 0, 0, 3, 0},     // normal
+        {0, "TEXCOORD1", 0, 0, 2, 0},     // texture coordinates
+    };
+    
     directx->device->CreateVertexShader(vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), 0, &directx->vertex_shader);
+    directx->device->CreateGeometryShaderWithStreamOutput(gs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), SO_input_signature, sizeof(SO_input_signature), 0, 0, 0, 0, &directx->geometry_shader);
     directx->device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), 0, &directx->pixel_shader);
 
+    int so_buffer_size = 1000000;
+    D3D11_BUFFER_DESC so_buffer_desc = {};
+    so_buffer_desc.ByteWidth = so_buffer_size;
+    so_buffer_desc.Usage = D3D11_USAGE_DEFAULT;
+    so_buffer_desc.BindFlags = D3D11_BIND_STREAM_OUTPUT;
+    so_buffer_desc.CPUAccessFlags = 0;
+    so_buffer_desc.MiscFlags = 0;
+    so_buffer_desc.StructureByteStride = 0;
+    
+    directx->device->CreateBuffer(&so_buffer_desc, 0, &directx->so_buffer);
+    
+
     directx->immediate_context->VSSetShader(directx->vertex_shader, 0, 0);
+    directx->immediate_context->SOSetTargets(1, &directx->so_buffer, 0);
     directx->immediate_context->PSSetShader(directx->pixel_shader, 0, 0);
 
     D3D11_INPUT_ELEMENT_DESC layout_desc[] = {
