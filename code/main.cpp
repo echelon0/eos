@@ -9,7 +9,7 @@
  */
 
 
-#define LOG_ERROR(Message) MessageBoxA(0, Message, "ERROR", MB_OK|MB_ICONERROR)
+#define LOG_ERROR(Title, Message) MessageBoxA(0, Message, Title, MB_OK|MB_ICONERROR)
 
 #include <windows.h>
 #include <Windowsx.h>
@@ -197,7 +197,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
             if(init_D3D(window, directx)) {
                 Array<StaticModel> all_models;
-                StaticModel test_model = load_obj("../assets/models/dragon1.OBJ");
+                StaticModel test_model = load_obj("../assets/models/robot_bust.OBJ");
                 Entity test_entity = {0, test_model};
                 Array<Entity> entities;
                 entities.push_back(test_entity);

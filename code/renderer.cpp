@@ -63,7 +63,7 @@ void draw_frame(D3D_RESOURCE *directx) {
     directx->immediate_context->Draw(directx->vertex_count, 0);
     HRESULT present_hr = directx->swap_chain->Present(0, 0);
     if(FAILED(present_hr)) {
-        LOG_ERROR("Unable to swap buffers");
+        LOG_ERROR("ERROR", "Unable to swap buffers");
     }
 
 }
@@ -92,7 +92,7 @@ bool set_vertex_buffer(D3D_RESOURCE *directx, Array<StaticModel> models) {
     directx->device->CreateBuffer(&vertex_buffer_desc, 0, &directx->vertex_buffer);
     HRESULT map_hr = directx->immediate_context->Map(directx->vertex_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_subresource);
     if(FAILED(map_hr)) {
-        LOG_ERROR("Cannot map vertex buffer");
+        LOG_ERROR("ERROR", "Cannot map vertex buffer");
         return false;
     }
     
@@ -153,7 +153,7 @@ bool set_constant_buffer(D3D_RESOURCE *directx) {
     
     HRESULT create_constant_buffer_hr = directx->device->CreateBuffer(&constant_buffer_desc, &constant_buffer_data, &directx->constant_buffer);
     if(FAILED(create_constant_buffer_hr)) {
-        LOG_ERROR("Cannot create constant buffer");
+        LOG_ERROR("ERROR", "Cannot create constant buffer");
         return false;
     }
     directx->immediate_context->VSSetConstantBuffers(0, 1, &directx->constant_buffer);
@@ -198,21 +198,21 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
                                                       &directx->swap_chain, &directx->device,
                                                       &directx->feature_level, &directx->immediate_context);
     if(FAILED(device_hr)) {
-        LOG_ERROR("Cannot create Direct3D device");
+        LOG_ERROR("ERROR", "Cannot create Direct3D device");
         return false;
     }
     
     // get pointer to the back buffer
     HRESULT get_buffer_hr = directx->swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&directx->back_buffer);
     if(FAILED(get_buffer_hr)) {
-        LOG_ERROR("Cannot retrieve back buffer location");
+        LOG_ERROR("ERROR", "Cannot retrieve back buffer location");
         return false;
     }
     
     // create a render target view
     HRESULT create_view_hr = directx->device->CreateRenderTargetView(directx->back_buffer, 0, &directx->render_target);    
     if(FAILED(create_view_hr)) {
-        LOG_ERROR("Cannot create render target view");
+        LOG_ERROR("ERROR", "Cannot create render target view");
         return false;
     }
     
@@ -221,44 +221,49 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
     ID3DBlob *vs_blob = (ID3DBlob *)malloc(sizeof(*vs_blob));
     ID3DBlob *gs_blob = (ID3DBlob *)malloc(sizeof(*gs_blob));
     ID3DBlob *ps_blob = (ID3DBlob *)malloc(sizeof(*ps_blob));
-    HRESULT compile_vs_hr = D3DCompileFromFile(L"../code/unified_shader.HLSL", 0, 0, "vs_main", "vs_4_0", 0, 0, &vs_blob, 0);
-    HRESULT compile_gs_hr = D3DCompileFromFile(L"../code/unified_shader.HLSL", 0, 0, "gs_main", "gs_4_0", 0, 0, &gs_blob, 0);
-    HRESULT compile_ps_hr = D3DCompileFromFile(L"../code/unified_shader.HLSL", 0, 0, "ps_main", "ps_4_0", 0, 0, &ps_blob, 0);
+    UINT shader_compiler_flags = D3DCOMPILE_OPTIMIZATION_LEVEL3;
+    ID3DBlob *error_message;
+    bool should_return = false;
+    
+    HRESULT compile_vs_hr = D3DCompileFromFile(L"../code/unified_shader.h", 0, 0, "vs_main", "vs_4_0", shader_compiler_flags, 0, &vs_blob, &error_message);
     if(FAILED(compile_vs_hr)) {
-        LOG_ERROR("Cannot compile vertex shader");
-        if(FAILED(compile_gs_hr)) {
-            LOG_ERROR("Cannot compile geometry shader");
-            if(FAILED(compile_ps_hr)) {
-                LOG_ERROR("Cannot compile pixel shader"); 
-            }
-        }
-        return false;
+        LOG_ERROR("ERROR: Cannot compile vertex shader", (char *)error_message->GetBufferPointer());
+        should_return = true;
     }
-
-    D3D11_SO_DECLARATION_ENTRY SO_input_signature[] = {
-        {0, "SV_POSITION", 0, 0, 4, 0},   // position
-        {0, "TEXCOORD0", 0, 0, 3, 0},     // normal
-        {0, "TEXCOORD1", 0, 0, 2, 0},     // texture coordinates
-    };
     
-    directx->device->CreateVertexShader(vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), 0, &directx->vertex_shader);
-    directx->device->CreateGeometryShaderWithStreamOutput(gs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), SO_input_signature, sizeof(SO_input_signature), 0, 0, 0, 0, &directx->geometry_shader);
-    directx->device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), 0, &directx->pixel_shader);
-
-    int so_buffer_size = 1000000;
-    D3D11_BUFFER_DESC so_buffer_desc = {};
-    so_buffer_desc.ByteWidth = so_buffer_size;
-    so_buffer_desc.Usage = D3D11_USAGE_DEFAULT;
-    so_buffer_desc.BindFlags = D3D11_BIND_STREAM_OUTPUT;
-    so_buffer_desc.CPUAccessFlags = 0;
-    so_buffer_desc.MiscFlags = 0;
-    so_buffer_desc.StructureByteStride = 0;
+    HRESULT compile_gs_hr = D3DCompileFromFile(L"../code/unified_shader.h", 0, 0, "gs_main", "gs_4_0", shader_compiler_flags, 0, &gs_blob, &error_message);
+    if(FAILED(compile_gs_hr)) {
+        LOG_ERROR("ERROR: Cannot compile geometry shader", (char *)error_message->GetBufferPointer());
+        should_return = true;
+    }
+        
+    HRESULT compile_ps_hr = D3DCompileFromFile(L"../code/unified_shader.h", 0, 0, "ps_main", "ps_4_0", shader_compiler_flags, 0, &ps_blob, &error_message);
+    if(FAILED(compile_ps_hr)) {
+        LOG_ERROR("ERROR: Cannot compile pixel shader", (char *)error_message->GetBufferPointer());
+        should_return = true;
+    }
     
-    directx->device->CreateBuffer(&so_buffer_desc, 0, &directx->so_buffer);
+    if(should_return) return false;
     
-
+    HRESULT create_vs_hr = directx->device->CreateVertexShader(vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), 0, &directx->vertex_shader);
+    HRESULT create_gs_hr = directx->device->CreateGeometryShader(gs_blob->GetBufferPointer(), gs_blob->GetBufferSize(), 0, &directx->geometry_shader);
+    HRESULT create_ps_hr = directx->device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), 0, &directx->pixel_shader);
+    if(FAILED(create_vs_hr)) {
+        LOG_ERROR("ERROR", "Cannot create vertex shader");
+        should_return = true;
+    }
+    if(FAILED(create_gs_hr)) {
+        LOG_ERROR("ERROR", "Cannot create geometry shader");
+        should_return = true;
+    }
+    if(FAILED(create_ps_hr)) {
+        LOG_ERROR("ERROR", "Cannot create pixel shader");
+        should_return = true;
+    }
+    if(should_return) return false;
+    
     directx->immediate_context->VSSetShader(directx->vertex_shader, 0, 0);
-    directx->immediate_context->SOSetTargets(1, &directx->so_buffer, 0);
+    directx->immediate_context->GSSetShader(directx->geometry_shader, 0, 0);
     directx->immediate_context->PSSetShader(directx->pixel_shader, 0, 0);
 
     D3D11_INPUT_ELEMENT_DESC layout_desc[] = {
@@ -270,7 +275,7 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
     HRESULT create_layout_hr = directx->device->CreateInputLayout(layout_desc, ARRAYSIZE(layout_desc), vs_blob->GetBufferPointer(),
                                                                   vs_blob->GetBufferSize(), &input_layout);
     if(FAILED(create_layout_hr)) {
-        LOG_ERROR("Cannot create input layout");
+        LOG_ERROR("ERROR", "Cannot create input layout");
         return false;
     }
     directx->immediate_context->IASetInputLayout(input_layout);
@@ -291,7 +296,7 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
     
         HRESULT raster_state_hr = directx->device->CreateRasterizerState(&raster_desc, &directx->rasterizer_state);
         if(FAILED(raster_state_hr)) {
-            LOG_ERROR("Cannot configurate rasterizer state");
+            LOG_ERROR("ERROR", "Cannot configurate rasterizer state");
             return false;
         }
 
@@ -327,7 +332,7 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
     
         HRESULT create_depth_stencil_hr = directx->device->CreateTexture2D(&depth_stencil_texture_desc, NULL, &directx->depth_stencil_texture);
         if(FAILED(create_depth_stencil_hr)) {
-            LOG_ERROR("Cannot create depth stencil texture");
+            LOG_ERROR("ERROR", "Cannot create depth stencil texture");
             return false;
         }
 
@@ -341,7 +346,7 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
     
         HRESULT create_depth_stencil_state_hr = directx->device->CreateDepthStencilState(&depth_stencil_desc, &depth_stencil_state);
         if(FAILED(create_depth_stencil_state_hr)) {
-            LOG_ERROR("Cannot create depth stencil state");
+            LOG_ERROR("ERROR", "Cannot create depth stencil state");
             return false;
         }
         directx->immediate_context->OMSetDepthStencilState(depth_stencil_state, 1);
@@ -354,7 +359,7 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
 
         HRESULT create_depth_stencil_view_hr = directx->device->CreateDepthStencilView(directx->depth_stencil_texture, &depth_stencil_view_desc, &directx->depth_stencil_view);
         if(FAILED(create_depth_stencil_view_hr)) {
-            LOG_ERROR("Cannot create depth stencil view");
+            LOG_ERROR("ERROR", "Cannot create depth stencil view");
             return false;
         }
     }

@@ -3,7 +3,7 @@
 char * read_file_to_buffer(char *path) {
     FILE *file_handle = fopen(path, "r");
     if(!file_handle) {
-        LOG_ERROR("Cannot open file path");
+        LOG_ERROR("ERROR", "Cannot open file path");
         return 0;
     } 
     fseek(file_handle, 0, SEEK_END);
@@ -30,7 +30,7 @@ StaticModel load_obj(char *path) {
     
     FILE *file_handle = fopen(path, "r");
     if(!file_handle) {
-        LOG_ERROR("Cannot open .obj file");
+        LOG_ERROR("ERROR", "Cannot open .obj file");
         return loaded_model;
     }
 
@@ -77,7 +77,7 @@ StaticModel load_obj(char *path) {
             } else if(has_v && !has_vt && !has_vn) { // v
                 fscanf(file_handle, "%d %d %d\n", &v1, &v2, &v3);
             } else {
-                LOG_ERROR("Cannot open .obj");
+                LOG_ERROR("ERROR", "Cannot open .obj");
             }
             
             VertexAttribute temp_vertices[3];
