@@ -73,13 +73,15 @@ float4 ps_main(GS_OUT input) : SV_TARGET {
     float min_dist = min(input.dist.x, input.dist.y);
     min_dist = min(min_dist, input.dist.z);
     float line_width = 0.01f;
-    float AA_threshold = 0.5f;
+    float AA_threshold = 0.2f;
     if(min_dist < line_width + AA_threshold) {
-        color = float4(0.0f, 0.2f, 0.5f, 0.0f); 
+        float4 line_color = float4(1.0f, 1.0f, 1.0f, 1.0f); 
         if(min_dist > line_width) {
             float line_intensity = pow(2.0f, -2.0f * pow(2.0 * (min_dist - line_width) / AA_threshold, 2.0f));
             if(line_intensity > 0.0001f)
-                color.x += line_intensity;
+                color = line_intensity * line_color + (1.0f - line_intensity) * color;
+        } else {
+            color = line_color;
         }
     }
 
