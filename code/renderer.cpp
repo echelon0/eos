@@ -24,6 +24,10 @@ struct ShaderConstants {
     mat44 world_matrix;
     mat44 view_matrix;
     mat44 projection_matrix;
+    int wire_frame_on;
+    int padding0;
+    int padding1;
+    int padding2;
 };
 
 struct D3D_RESOURCE {
@@ -48,7 +52,7 @@ struct D3D_RESOURCE {
     int vertex_count;
 };
 
-void draw_frame(D3D_RESOURCE *directx) {
+bool draw_frame(D3D_RESOURCE *directx) {
     FLOAT color[] = {0.788f, 0.867f, 1.0f, 1.0f};
     
 
@@ -64,8 +68,9 @@ void draw_frame(D3D_RESOURCE *directx) {
     HRESULT present_hr = directx->swap_chain->Present(0, 0);
     if(FAILED(present_hr)) {
         LOG_ERROR("ERROR", "Unable to swap buffers");
+        return false;
     }
-
+    return true;
 }
 
 bool set_vertex_buffer(D3D_RESOURCE *directx, Array<StaticModel> models) {
@@ -102,7 +107,7 @@ bool set_vertex_buffer(D3D_RESOURCE *directx, Array<StaticModel> models) {
     return true;
 }
 
-bool set_constant_buffer(D3D_RESOURCE *directx) {
+bool set_constant_buffer(D3D_RESOURCE *directx, int selected_entity) {
     if(global_input.W_KEY) {
         directx->camera.position += directx->camera.direction * 0.1f;
     }
@@ -137,6 +142,10 @@ bool set_constant_buffer(D3D_RESOURCE *directx) {
                                            directx->camera.up);
     
     constants.projection_matrix = perspective(45.0f, 16.0f/9.0f, 0.1f, 1000.0f);
+    if(selected_entity >= 0)
+        constants.wire_frame_on = 1;
+    else
+        constants.wire_frame_on = 0;    
 
     D3D11_BUFFER_DESC constant_buffer_desc = {};
     constant_buffer_desc.ByteWidth = sizeof(ShaderConstants);

@@ -3,6 +3,10 @@ cbuffer ShaderConstants : register(b0) {
     matrix world_matrix;
     matrix view_matrix;
     matrix projection_matrix;
+    int wire_frame_on;
+    int padding0;
+    int padding1;
+    int padding2;
 };
 
 struct VS_IN {
@@ -29,7 +33,7 @@ VS_OUT vs_main(VS_IN input) {
     output.position = float4(input.position.x, input.position.y, input.position.z, 1.0f);
     output.position = mul(output.position, view_matrix);
     output.position = mul(output.position, transpose(projection_matrix));
-    output.normal = float3(input.normal.x, -input.normal.y, input.normal.z);
+    output.normal = float3(input.normal.x, input.normal.y, input.normal.z);
     output.texcoord = input.texcoord;
     
     return output;
@@ -70,20 +74,22 @@ float4 ps_main(GS_OUT input) : SV_TARGET {
     float4 color = float4(abs(light_intensity.x), abs(light_intensity.y), abs(light_intensity.z), 1.0f);
 
     // solid wire frame
-    float min_dist = min(input.dist.x, input.dist.y);
-    min_dist = min(min_dist, input.dist.z);
-    float line_width = 0.01f;
-    float AA_threshold = 0.2f;
-    if(min_dist < line_width + AA_threshold) {
-        float4 line_color = float4(1.0f, 1.0f, 1.0f, 1.0f); 
-        if(min_dist > line_width) {
-            float line_intensity = pow(2.0f, -2.0f * pow(2.0 * (min_dist - line_width) / AA_threshold, 2.0f));
-            if(line_intensity > 0.0001f)
-                color = line_intensity * line_color + (1.0f - line_intensity) * color;
-        } else {
-            color = line_color;
+    if(wire_frame_on) {
+        float min_dist = min(input.dist.x, input.dist.y);
+        min_dist = min(min_dist, input.dist.z);
+        float line_width = 0.01f;
+        float AA_threshold = 0.2f;
+        if(min_dist < line_width + AA_threshold) {
+            float4 line_color = float4(1.0f, 1.0f, 1.0f, 1.0f); 
+            if(min_dist > line_width) {
+                float line_intensity = pow(2.0f, -2.0f * pow(2.0 * (min_dist - line_width) / AA_threshold, 2.0f));
+                if(line_intensity > 0.0001f)
+                    color = line_intensity * line_color + (1.0f - line_intensity) * color;
+            } else {
+                color = line_color;
+            }
         }
     }
-
+    
     return color;
 }

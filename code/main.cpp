@@ -1,11 +1,10 @@
 
 /*
   TODO:
-  - Object picking
-  - Camera translation/orientation with mouse input
-  - Realtime shader compilation
-  - Line sweep ambient obscurance
-     - config the compute shader
+  Select entity throught mouse click
+  Only apply wireframe to selected entities
+  Change camera direction with mouse drag
+  
  */
 
 
@@ -205,6 +204,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 set_vertex_buffer(directx, all_models);
                     
                 global_is_running = true;
+                int picked_entity = -1;
                 while(global_is_running) {
                     MSG message;
                     while(PeekMessage(&message, window, 0, 0, PM_REMOVE)) {
@@ -213,10 +213,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     }
                     process_input();
                     if(global_input.CLICKED) {
-                        editor::get_picked_entity_index(directx->camera, vec3(0.0f, 1.0f, 0.0f), global_input.CURRENT_POS, client_dim, 45.0f, 16.0f/9.0f, entities);
+                        picked_entity = editor::get_picked_entity_index(directx->camera, vec3(0.0f, 1.0f, 0.0f), global_input.CURRENT_POS, client_dim, 45.0f, 16.0f/9.0f, entities);
                     }
-                    set_constant_buffer(directx);
-                    draw_frame(directx);
+                    if(!set_constant_buffer(directx, picked_entity)) break;
+                    if(!draw_frame(directx)) break;
                     
                     reset_input();
                 }
