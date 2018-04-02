@@ -12,6 +12,7 @@ struct StaticModel {
 struct Entity {
     unsigned int ID;
     StaticModel model;
+    bool selected; //solid wireframe on/off
 };
 
 struct Camera {
@@ -24,7 +25,7 @@ struct ShaderConstants {
     mat44 world_matrix;
     mat44 view_matrix;
     mat44 projection_matrix;
-    int wire_frame_on;
+    bool wire_frame_on;
     int padding0;
     int padding1;
     int padding2;
@@ -43,7 +44,6 @@ struct D3D_RESOURCE {
     ID3D11PixelShader *pixel_shader;
     ID3D11Buffer *vertex_buffer;
     ID3D11Buffer *so_buffer;
-    ID3D11Buffer *constant_buffer;
     ID3D11RasterizerState *rasterizer_state;
     ID3D11Texture2D *depth_stencil_texture;
     ID3D11DepthStencilView* depth_stencil_view;
@@ -107,7 +107,7 @@ bool set_vertex_buffer(D3D_RESOURCE *directx, Array<StaticModel> models) {
     return true;
 }
 
-bool set_constant_buffer(D3D_RESOURCE *directx, int selected_entity) {
+bool set_constant_buffer(D3D_RESOURCE *directx, Array<Entity> entities) {
     if(global_input.W_KEY) {
         directx->camera.position += directx->camera.direction * 0.1f;
     }
@@ -132,21 +132,8 @@ bool set_constant_buffer(D3D_RESOURCE *directx, int selected_entity) {
     }
     if(global_input.LEFT_ARROW) {
         rotate(&directx->camera.direction, -0.01f, Y_AXIS);
-    }    
+    }        
     
-    
-    ShaderConstants constants = {};
-    constants.world_matrix = make_scaling_matrix(1.0f, 1.0f, 1.0f, 1.0f); // NOTE(Alex): not currently used
-    constants.view_matrix = view_transform(directx->camera.position,
-                                           directx->camera.direction,
-                                           directx->camera.up);
-    
-    constants.projection_matrix = perspective(45.0f, 16.0f/9.0f, 0.1f, 1000.0f);
-    if(selected_entity >= 0)
-        constants.wire_frame_on = 1;
-    else
-        constants.wire_frame_on = 0;    
-
     D3D11_BUFFER_DESC constant_buffer_desc = {};
     constant_buffer_desc.ByteWidth = sizeof(ShaderConstants);
     constant_buffer_desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -155,17 +142,30 @@ bool set_constant_buffer(D3D_RESOURCE *directx, int selected_entity) {
     constant_buffer_desc.MiscFlags = 0;
     constant_buffer_desc.StructureByteStride = 0;
 
-    D3D11_SUBRESOURCE_DATA constant_buffer_data = {};
-    constant_buffer_data.pSysMem = &constants;
-    constant_buffer_data.SysMemPitch = 0;
-    constant_buffer_data.SysMemSlicePitch = 0;
+    ID3D11Buffer **constant_buffers = (ID3D11Buffer **)malloc(entities.size * sizeof(ID3D11Buffer));
     
-    HRESULT create_constant_buffer_hr = directx->device->CreateBuffer(&constant_buffer_desc, &constant_buffer_data, &directx->constant_buffer);
-    if(FAILED(create_constant_buffer_hr)) {
-        LOG_ERROR("ERROR", "Cannot create constant buffer");
-        return false;
+    ShaderConstants constants = {};
+    constants.view_matrix = view_transform(directx->camera.position,
+                                           directx->camera.direction,
+                                           directx->camera.up);
+    constants.projection_matrix = perspective(45.0f, 16.0f/9.0f, 0.1f, 1000.0f);
+    
+    for(int i = 0; i < entities.size; i++) {
+        constants.world_matrix = make_scaling_matrix(1.0f, 1.0f, 1.0f, 1.0f); // NOTE(Alex): not currently used
+        constants.wire_frame_on = entities[i].selected;
+        
+        D3D11_SUBRESOURCE_DATA constant_buffer_data = {};
+        constant_buffer_data.pSysMem = &constants;
+        constant_buffer_data.SysMemPitch = 0;
+        constant_buffer_data.SysMemSlicePitch = 0;
+
+        HRESULT create_constant_buffer_hr = directx->device->CreateBuffer(&constant_buffer_desc, &constant_buffer_data, &constant_buffers[i]);
+        if(FAILED(create_constant_buffer_hr)) {
+            LOG_ERROR("ERROR", "Cannot create constant buffer");
+            return false;
+        }
     }
-    directx->immediate_context->VSSetConstantBuffers(0, 1, &directx->constant_buffer);
+    directx->immediate_context->VSSetConstantBuffers(0, entities.size, constant_buffers);
     
     return true;
 }

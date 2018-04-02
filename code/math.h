@@ -111,8 +111,8 @@ struct mat33 {
     float data[3][3];
     
     mat33() {
-        for(int i = 0; i < 4; i++) {
-            for(int j = 0; j < 4; j++) {
+        for(int i = 0; i < 3; i++) {
+            for(int j = 0; j < 3; j++) {
                 this->data[i][j] = 0.0f;
             }
         }
@@ -258,6 +258,23 @@ operator - (vec2 lhs, vec2 rhs) {
     result.x = lhs.x - rhs.x;
     result.y = lhs.y - rhs.y;
     return result;    
+}
+
+inline float
+magnitude(vec2 source) {
+    return sqrtf(source.x * source.x + source.y * source.y);
+}
+
+inline vec2
+normalize(vec2 source) {
+    vec2 result;
+    float source_length = magnitude(source);
+    float multiplier = 1.0f / source_length;
+    
+    result.x = source.x * multiplier;
+    result.y = source.y * multiplier;
+    
+    return result;
 }
 
 inline vec3

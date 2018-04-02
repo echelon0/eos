@@ -197,10 +197,14 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             if(init_D3D(window, directx)) {
                 Array<StaticModel> all_models;
                 StaticModel test_model = load_obj("../assets/models/robot_bust.OBJ");
-                Entity test_entity = {0, test_model};
+                StaticModel test_model2 = load_obj("../assets/models/cube.OBJ");
+                Entity test_entity = {0, test_model, false};
+                Entity test_entity2 = {0, test_model2, false};
                 Array<Entity> entities;
                 entities.push_back(test_entity);
+                entities.push_back(test_entity2);
                 all_models.push_back(test_model);
+                all_models.push_back(test_model2);
                 set_vertex_buffer(directx, all_models);
                     
                 global_is_running = true;
@@ -212,10 +216,19 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         DispatchMessage(&message);
                     }
                     process_input();
+                    
                     if(global_input.CLICKED) {
                         picked_entity = editor::get_picked_entity_index(directx->camera, vec3(0.0f, 1.0f, 0.0f), global_input.CURRENT_POS, client_dim, 45.0f, 16.0f/9.0f, entities);
+                        if(picked_entity != -1) {
+                            entities[picked_entity].selected = true;
+                        } else {
+                            for(int i = 0; i < entities.size; i++) {
+                                entities[i].selected = false;
+                            }
+                        }
                     }
-                    if(!set_constant_buffer(directx, picked_entity)) break;
+                    
+                    if(!set_constant_buffer(directx, entities)) break;
                     if(!draw_frame(directx)) break;
                     
                     reset_input();
