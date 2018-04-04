@@ -1,10 +1,7 @@
 
 /*
   TODO:
-  Select entity throught mouse click
-  Only apply wireframe to selected entities
   Change camera direction with mouse drag
-  
  */
 
 
@@ -27,13 +24,26 @@ struct INPUT_STATE {
     bool DOWN_ARROW;
     bool LEFT_ARROW;
     bool RIGHT_ARROW;
+    bool SPACE_BAR;
+    bool SHIFT_KEY;
 
+    ivec2 PREV_POS;
+    ivec2 CURRENT_POS;
+    bool SET_DRAG_VECTOR;
+    ivec2 PER_FRAME_DRAG_VECTOR;
+    vec2 PER_FRAME_DRAG_VECTOR_PERCENT;
+    
     bool LEFT_MOUSE_BUTTON;
     bool LEFT_MOUSE_BUTTON_RELEASED;
-    ivec2 DOWN_POS;
-    ivec2 CURRENT_POS;
-    ivec2 DRAG_VECTOR;
-    bool CLICKED;
+    ivec2 LEFT_DOWN_POS;
+    ivec2 LEFT_DRAG_VECTOR;
+    bool LEFT_CLICKED;
+
+    bool RIGHT_MOUSE_BUTTON;
+    bool RIGHT_MOUSE_BUTTON_RELEASED;
+    ivec2 RIGHT_DOWN_POS;
+    ivec2 RIGHT_DRAG_VECTOR;
+    bool RIGHT_CLICKED;
 };
 
 static bool global_is_running;
@@ -81,6 +91,12 @@ LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPara
                 case VK_RIGHT: {
                     global_input.RIGHT_ARROW = true;
                 } break;
+                case VK_SPACE: {
+                    global_input.SPACE_BAR = true;
+                } break;
+                case VK_SHIFT: {
+                    global_input.SHIFT_KEY = true;
+                } break;
                     
                 default:
                     break;
@@ -113,26 +129,53 @@ LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPara
                 case VK_RIGHT: {
                     global_input.RIGHT_ARROW = false;
                 } break;
+                case VK_SPACE: {
+                    global_input.SPACE_BAR = false;
+                } break;
+                case VK_SHIFT: {
+                    global_input.SHIFT_KEY = false;
+                } break;
                     
                 default:
                     break;
             }
         } break;
 
+        case WM_MOUSEMOVE: {
+            global_input.PREV_POS = global_input.CURRENT_POS;
+            global_input.CURRENT_POS.x = GET_X_LPARAM(lParam);
+            global_input.CURRENT_POS.y = GET_Y_LPARAM(lParam);
+            global_input.SET_DRAG_VECTOR = true;
+        } break;
+            
         case WM_LBUTTONDOWN: {
             if(!global_input.LEFT_MOUSE_BUTTON) {
-                global_input.DOWN_POS.x = GET_X_LPARAM(lParam); 
-                global_input.DOWN_POS.y = GET_Y_LPARAM(lParam);
+                global_input.LEFT_DOWN_POS.x = GET_X_LPARAM(lParam);
+                global_input.LEFT_DOWN_POS.y = GET_Y_LPARAM(lParam);
             }
             global_input.LEFT_MOUSE_BUTTON = true;
         } break;
             
         case WM_LBUTTONUP: {
-            global_input.CURRENT_POS.x = GET_X_LPARAM(lParam); 
-            global_input.CURRENT_POS.y = GET_Y_LPARAM(lParam);      
+            global_input.CURRENT_POS.x = GET_X_LPARAM(lParam);
+            global_input.CURRENT_POS.y = GET_Y_LPARAM(lParam);
             global_input.LEFT_MOUSE_BUTTON_RELEASED = true;
         } break;
+
+        case WM_RBUTTONDOWN: {
+            if(!global_input.RIGHT_MOUSE_BUTTON) {
+                global_input.RIGHT_DOWN_POS.x = GET_X_LPARAM(lParam);
+                global_input.RIGHT_DOWN_POS.y = GET_Y_LPARAM(lParam);
+            }
+            global_input.RIGHT_MOUSE_BUTTON = true;
+        } break;
             
+        case WM_RBUTTONUP: {
+            global_input.CURRENT_POS.x = GET_X_LPARAM(lParam);
+            global_input.CURRENT_POS.y = GET_Y_LPARAM(lParam);
+            global_input.RIGHT_MOUSE_BUTTON_RELEASED = true;
+        } break;
+     
         default: {
             result = DefWindowProc(hWnd, Msg, wParam, lParam);
         } break;
@@ -142,23 +185,47 @@ LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPara
 }
 
 void process_input() {
+    if(global_input.SET_DRAG_VECTOR) {
+        global_input.PER_FRAME_DRAG_VECTOR = global_input.CURRENT_POS - global_input.PREV_POS;
+        global_input.PER_FRAME_DRAG_VECTOR_PERCENT = vec2((float)global_input.PER_FRAME_DRAG_VECTOR.x / (float)GetSystemMetrics(SM_CXSCREEN),
+                                                          (float)global_input.PER_FRAME_DRAG_VECTOR.y / (float)GetSystemMetrics(SM_CYSCREEN));
+    }
     if(global_input.LEFT_MOUSE_BUTTON) {
-        global_input.DRAG_VECTOR = global_input.CURRENT_POS - global_input.DOWN_POS;
+        global_input.LEFT_DRAG_VECTOR = global_input.CURRENT_POS - global_input.LEFT_DOWN_POS;
         
-        if(global_input.LEFT_MOUSE_BUTTON_RELEASED && global_input.DRAG_VECTOR == ivec2(0, 0)) {
-            //NOTE(Alex): CLICKED is defined as a left mouse button down followed by
+        if(global_input.LEFT_MOUSE_BUTTON_RELEASED && global_input.LEFT_DRAG_VECTOR == ivec2(0, 0)) {
+            //NOTE(Alex): LEFT_CLICKED is defined as a left mouse button down followed by
             //            a release in which the cursor stayed in the same position.
-            global_input.CLICKED = true; 
+            global_input.LEFT_CLICKED = true; 
+        }
+    }
+    if(global_input.RIGHT_MOUSE_BUTTON) {
+        global_input.LEFT_DRAG_VECTOR = global_input.CURRENT_POS - global_input.LEFT_DOWN_POS;
+        
+        if(global_input.RIGHT_MOUSE_BUTTON_RELEASED && global_input.RIGHT_DRAG_VECTOR == ivec2(0, 0)) {
+            //NOTE(Alex): RIGHT_CLICKED is defined as a right mouse button down followed by
+            //            a release in which the cursor stayed in the same position.
+            global_input.RIGHT_CLICKED = true; 
         }
     }
 }
 
 void reset_input() {
+    global_input.SET_DRAG_VECTOR = false;
+    global_input.PER_FRAME_DRAG_VECTOR = ivec2(0, 0);
+    global_input.PER_FRAME_DRAG_VECTOR_PERCENT = vec2(0.0f, 0.0f);
+    
     if(global_input.LEFT_MOUSE_BUTTON && global_input.LEFT_MOUSE_BUTTON_RELEASED) {
         global_input.LEFT_MOUSE_BUTTON = false;
         global_input.LEFT_MOUSE_BUTTON_RELEASED = false;
     }
-    global_input.CLICKED = false;
+    global_input.LEFT_CLICKED = false;
+    
+    if(global_input.RIGHT_MOUSE_BUTTON && global_input.RIGHT_MOUSE_BUTTON_RELEASED) {
+        global_input.RIGHT_MOUSE_BUTTON = false;
+        global_input.RIGHT_MOUSE_BUTTON_RELEASED = false;
+    }
+    global_input.RIGHT_CLICKED = false;
 }
 
 int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
@@ -195,17 +262,12 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             D3D_RESOURCE *directx = (D3D_RESOURCE *)malloc(sizeof(*directx));
 
             if(init_D3D(window, directx)) {
-                Array<StaticModel> all_models;
-                StaticModel test_model = load_obj("../assets/models/robot_bust.OBJ");
-                StaticModel test_model2 = load_obj("../assets/models/cube.OBJ");
-                Entity test_entity = {0, test_model, false};
-                Entity test_entity2 = {0, test_model2, false};
+                Entity test_entity = {0, load_obj("../assets/models/robot_bust.OBJ"), false};
+                Entity test_entity2 = {0, load_obj("../assets/models/cube.OBJ"), false};
                 Array<Entity> entities;
                 entities.push_back(test_entity);
                 entities.push_back(test_entity2);
-                all_models.push_back(test_model);
-                all_models.push_back(test_model2);
-                set_vertex_buffer(directx, all_models);
+                set_vertex_buffer(directx, entities);
                     
                 global_is_running = true;
                 int picked_entity = -1;
@@ -217,19 +279,27 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     }
                     process_input();
                     
-                    if(global_input.CLICKED) {
-                        picked_entity = editor::get_picked_entity_index(directx->camera, vec3(0.0f, 1.0f, 0.0f), global_input.CURRENT_POS, client_dim, 45.0f, 16.0f/9.0f, entities);
-                        if(picked_entity != -1) {
-                            entities[picked_entity].selected = true;
-                        } else {
-                            for(int i = 0; i < entities.size; i++) {
-                                entities[i].selected = false;
-                            }
+                    if(global_input.PER_FRAME_DRAG_VECTOR.x > 0)
+                        SetWindowText(window, "greater");
+                    else
+                        SetWindowText(window, "less");
+
+                    if(global_input.RIGHT_MOUSE_BUTTON) {
+                        if(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x != 0.0f) {
+                            rotate(&directx->camera.direction, -global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x*2.0f, Y_AXIS);
                         }
                     }
                     
-                    if(!set_constant_buffer(directx, entities)) break;
-                    if(!draw_frame(directx)) break;
+                    if(global_input.LEFT_CLICKED) {
+                        picked_entity = editor::get_picked_entity_index(directx->camera, vec3(0.0f, 1.0f, 0.0f), global_input.CURRENT_POS, client_dim, 45.0f, 16.0f/9.0f, entities);
+                        for(int i = 0; i < entities.size; i++) {
+                            entities[i].selected = false;
+                            if(picked_entity != -1)
+                                entities[picked_entity].selected = true;
+                        }
+                    }
+                    
+                    if(!draw_frame(directx, entities)) break;
                     
                     reset_input();
                 }

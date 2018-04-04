@@ -44,6 +44,10 @@ struct vec2 {
     bool operator == (vec2 rhs) {
         return (this->x == rhs.x) && (this->y == rhs.y);
     }
+
+    bool operator > (vec2 rhs) {
+        return sqrt(this->x * this->x + this->y * this->y) > sqrt(rhs.x * rhs.x + rhs.y * rhs.y);
+    }
 };
 
 struct vec3 {

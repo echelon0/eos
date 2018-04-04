@@ -52,34 +52,13 @@ struct D3D_RESOURCE {
     int vertex_count;
 };
 
-bool draw_frame(D3D_RESOURCE *directx) {
-    FLOAT color[] = {0.788f, 0.867f, 1.0f, 1.0f};
-    
-
-    directx->immediate_context->ClearRenderTargetView(directx->render_target, color);
-    directx->immediate_context->ClearDepthStencilView(directx->depth_stencil_view, D3D11_CLEAR_DEPTH, 1.0f, 0);
-                    
-    UINT stride = sizeof(VertexAttribute);
-    UINT offset = 0;
-    directx->immediate_context->IASetVertexBuffers(0, 1, &directx->vertex_buffer, &stride, &offset);
-    directx->immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-    directx->immediate_context->Draw(directx->vertex_count, 0);
-    HRESULT present_hr = directx->swap_chain->Present(0, 0);
-    if(FAILED(present_hr)) {
-        LOG_ERROR("ERROR", "Unable to swap buffers");
-        return false;
-    }
-    return true;
-}
-
-bool set_vertex_buffer(D3D_RESOURCE *directx, Array<StaticModel> models) {
+bool set_vertex_buffer(D3D_RESOURCE *directx, Array<Entity> &entities) {
     
     Array<VertexAttribute> all_vertices;
 
-    for(int model_index = 0; model_index < models.size; model_index++) {
-        for(int i = 0; i < models[model_index].vertex_attributes.size; i++) {
-            all_vertices.push_back(models[model_index].vertex_attributes[i]);
+    for(int entity_index = 0; entity_index < entities.size; entity_index++) {
+        for(int i = 0; i < entities[entity_index].model.vertex_attributes.size; i++) {
+            all_vertices.push_back(entities[entity_index].model.vertex_attributes[i]);
         }
     }
 
@@ -107,7 +86,7 @@ bool set_vertex_buffer(D3D_RESOURCE *directx, Array<StaticModel> models) {
     return true;
 }
 
-bool set_constant_buffer(D3D_RESOURCE *directx, Array<Entity> entities) {
+bool draw_frame(D3D_RESOURCE *directx, Array<Entity> &entities) {
     if(global_input.W_KEY) {
         directx->camera.position += directx->camera.direction * 0.1f;
     }
@@ -120,10 +99,10 @@ bool set_constant_buffer(D3D_RESOURCE *directx, Array<Entity> entities) {
     if(global_input.D_KEY) {
         directx->camera.position -= cross(directx->camera.direction, directx->camera.up) * 0.1f;
     }
-    if(global_input.UP_ARROW) {
+    if(global_input.SPACE_BAR && !global_input.SHIFT_KEY) {
         directx->camera.position += directx->camera.up * 0.1f;
     }
-    if(global_input.DOWN_ARROW) {
+    if(global_input.SPACE_BAR && global_input.SHIFT_KEY) {
         directx->camera.position -= directx->camera.up * 0.1f;
     }
     
@@ -133,6 +112,19 @@ bool set_constant_buffer(D3D_RESOURCE *directx, Array<Entity> entities) {
     if(global_input.LEFT_ARROW) {
         rotate(&directx->camera.direction, -0.01f, Y_AXIS);
     }        
+
+    {
+        FLOAT background_color[] = {0.788f, 0.867f, 1.0f, 1.0f};
+        directx->immediate_context->ClearRenderTargetView(directx->render_target, background_color);
+        directx->immediate_context->ClearDepthStencilView(directx->depth_stencil_view, D3D11_CLEAR_DEPTH, 1.0f, 0);
+                    
+        UINT stride = sizeof(VertexAttribute);
+        UINT offset = 0;
+        directx->immediate_context->IASetVertexBuffers(0, 1, &directx->vertex_buffer, &stride, &offset);
+        directx->immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    }
+
     
     D3D11_BUFFER_DESC constant_buffer_desc = {};
     constant_buffer_desc.ByteWidth = sizeof(ShaderConstants);
@@ -141,15 +133,15 @@ bool set_constant_buffer(D3D_RESOURCE *directx, Array<Entity> entities) {
     constant_buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     constant_buffer_desc.MiscFlags = 0;
     constant_buffer_desc.StructureByteStride = 0;
-
-    ID3D11Buffer **constant_buffers = (ID3D11Buffer **)malloc(entities.size * sizeof(ID3D11Buffer));
     
     ShaderConstants constants = {};
     constants.view_matrix = view_transform(directx->camera.position,
                                            directx->camera.direction,
                                            directx->camera.up);
     constants.projection_matrix = perspective(45.0f, 16.0f/9.0f, 0.1f, 1000.0f);
-    
+
+    ID3D11Buffer *constant_buffer;
+    int vertex_draw_offset = 0;
     for(int i = 0; i < entities.size; i++) {
         constants.world_matrix = make_scaling_matrix(1.0f, 1.0f, 1.0f, 1.0f); // NOTE(Alex): not currently used
         constants.wire_frame_on = entities[i].selected;
@@ -159,13 +151,21 @@ bool set_constant_buffer(D3D_RESOURCE *directx, Array<Entity> entities) {
         constant_buffer_data.SysMemPitch = 0;
         constant_buffer_data.SysMemSlicePitch = 0;
 
-        HRESULT create_constant_buffer_hr = directx->device->CreateBuffer(&constant_buffer_desc, &constant_buffer_data, &constant_buffers[i]);
+        HRESULT create_constant_buffer_hr = directx->device->CreateBuffer(&constant_buffer_desc, &constant_buffer_data, &constant_buffer);
         if(FAILED(create_constant_buffer_hr)) {
             LOG_ERROR("ERROR", "Cannot create constant buffer");
             return false;
         }
+        directx->immediate_context->VSSetConstantBuffers(0, 1, &constant_buffer);
+        directx->immediate_context->Draw(entities[i].model.vertex_attributes.size, vertex_draw_offset);
+        vertex_draw_offset += entities[i].model.vertex_attributes.size;
     }
-    directx->immediate_context->VSSetConstantBuffers(0, entities.size, constant_buffers);
+    
+    HRESULT present_hr = directx->swap_chain->Present(0, 0);
+    if(FAILED(present_hr)) {
+        LOG_ERROR("ERROR", "Unable to swap buffers");
+        return false;
+    }
     
     return true;
 }
