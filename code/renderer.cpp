@@ -19,6 +19,29 @@ struct Camera {
     vec3 position;
     vec3 direction;
     vec3 up;
+
+    void rotate(vec3 *vector, float angle, int axis_of_rotation) {
+        switch(axis_of_rotation) {
+            case X_AXIS: {
+                vector->y = vector->y * (float)cos(angle) + vector->z * -1*(float)sin(angle);
+                vector->z = vector->y * (float)sin(angle) + vector->z * (float)cos(angle);
+            } break;
+        
+            case Y_AXIS: {
+                vector->x = vector->x * (float)cos(angle) + vector->z * (float)sin(angle);
+                vector->z = vector->x * -1*(float)sin(angle) + vector->z * (float)cos(angle);
+            } break;
+        
+            case Z_AXIS: {
+                vector->x = vector->x * (float)cos(angle) + vector->y * -1*(float)sin(angle);
+                vector->y = vector->x * (float)sin(angle) + vector->y * (float)cos(angle);      
+            } break;
+        }
+    }
+    void rotate(float angle, int axis_of_rotation) {
+        rotate(&direction, angle, axis_of_rotation);
+        rotate(&up, angle, axis_of_rotation);   
+    }
 };
 
 struct ShaderConstants {

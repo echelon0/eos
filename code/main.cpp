@@ -286,7 +286,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
                     if(global_input.RIGHT_MOUSE_BUTTON) {
                         if(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x != 0.0f) {
-                            rotate(&directx->camera.direction, -global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x*2.0f, Y_AXIS);
+                            directx->camera.rotate(-global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x*2.0f, Y_AXIS);
+                        }
+                        if(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.y != 0.0f) {
+                            directx->camera.rotate(-global_input.PER_FRAME_DRAG_VECTOR_PERCENT.y*2.0f, X_AXIS);
                         }
                     }
                     
