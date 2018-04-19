@@ -652,9 +652,9 @@ lerp(vec2 a, vec2 b, float t) {
     return t*b + (1-t)*a;
 }
 
-//TODO: create an accelerated version of this function
 inline bool
 ray_intersects_triangle(vec3 ro, vec3 rd, vec3 v0, vec3 v1, vec3 v2, vec3 &intersection) {
+    /*
     intersection = vec3();
     float epsilon = 0.00001f;
     vec3 edge1 = v1 - v0;
@@ -664,10 +664,10 @@ ray_intersects_triangle(vec3 ro, vec3 rd, vec3 v0, vec3 v1, vec3 v2, vec3 &inter
     if(a > -epsilon && a < epsilon) 
         return false;
     
-    float f = 1 / a;
+    float f = 1.0f / a;
     vec3 s = ro - v0;
     float u = f * dot(s, q);
-    if(u < 0.0f)
+    if(u < 0.0f || u > 1.0f)
         return false;
     
     vec3 r = cross(s, edge1);
@@ -676,10 +676,63 @@ ray_intersects_triangle(vec3 ro, vec3 rd, vec3 v0, vec3 v1, vec3 v2, vec3 &inter
         return false;
     
     float t = f * dot(edge2, r);
-    intersection = ro + rd * t;
-    return true;
+    if(t > epsilon) {
+        intersection = ro + rd * t;
+        return true;
+    } else {
+        return false;
+    }
+    */
+    const float EPSILON = 0.0000001f; 
+    vec3 vertex0 = v0;
+    vec3 vertex1 = v1;
+    vec3 vertex2 = v2;
+    vec3 edge1, edge2, h, s, q;
+    float a,f,u,v;
+    edge1 = vertex1 - vertex0;
+    edge2 = vertex2 - vertex0;
+    h = cross(rd, edge2);
+    a = dot(edge1, h);
+    if (a > -EPSILON && a < EPSILON)
+        return false;
+    f = 1/a;
+    s = ro - vertex0;
+    u = f * dot(s, h);
+    if (u < 0.0 || u > 1.0)
+        return false;
+    q = cross(s, edge1);
+    v = f * dot(rd, q);
+    if (v < 0.0 || u + v > 1.0)
+        return false;
+    // At this stage we can compute t to find out where the intersection point is on the line.
+    float t = f * dot(edge2, q);
+    if (t > EPSILON) // ray intersection
+    {
+        intersection = ro + rd * t; 
+        return true;
+    }
+    else // This means that there is a line intersection but not a ray intersection.
+        return false;
 }
 
+inline float
+abs(float x) {
+    return (x < 0)? -x : x;
+}
 
+inline int
+abs(int x) {
+    return (x < 0)? -x : x;
+}
+
+inline float
+floor(float x) {
+    return (x < 0) ? ((float)(int)x - 1.0f) : ((float)(int)x);
+}
+
+inline float
+ceil(float x) {
+    return (x < 0) ? ((float)(int)x) : ((float)(int)x + 1.0f);
+}
 
 

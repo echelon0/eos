@@ -3,6 +3,7 @@ struct VertexAttribute {
     vec3 position;
     vec3 normal;
     vec2 texcoord;
+    unsigned int entity_ID;
 };
 
 struct StaticModel {
@@ -110,31 +111,6 @@ bool set_vertex_buffer(D3D_RESOURCE *directx, Array<Entity> &entities) {
 }
 
 bool draw_frame(D3D_RESOURCE *directx, Array<Entity> &entities) {
-    if(global_input.W_KEY) {
-        directx->camera.position += directx->camera.direction * 0.1f;
-    }
-    if(global_input.S_KEY) {
-        directx->camera.position -= directx->camera.direction * 0.1f;
-    }
-    if(global_input.A_KEY) {
-        directx->camera.position += cross(directx->camera.direction, directx->camera.up) * 0.1f;
-    }
-    if(global_input.D_KEY) {
-        directx->camera.position -= cross(directx->camera.direction, directx->camera.up) * 0.1f;
-    }
-    if(global_input.SPACE_BAR && !global_input.SHIFT_KEY) {
-        directx->camera.position += directx->camera.up * 0.1f;
-    }
-    if(global_input.SPACE_BAR && global_input.SHIFT_KEY) {
-        directx->camera.position -= directx->camera.up * 0.1f;
-    }
-    
-    if(global_input.RIGHT_ARROW) {
-        rotate(&directx->camera.direction, 0.01f, Y_AXIS);
-    }
-    if(global_input.LEFT_ARROW) {
-        rotate(&directx->camera.direction, -0.01f, Y_AXIS);
-    }        
 
     {
         FLOAT background_color[] = {0.788f, 0.867f, 1.0f, 1.0f};
@@ -397,7 +373,7 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
     }
     directx->immediate_context->OMSetRenderTargets(1, &directx->render_target, directx->depth_stencil_view);
 
-    directx->camera.position = vec3(0.0f, 0.0f, 0.0f);
+    directx->camera.position = vec3(0.0f, 1.0f, 0.0f);
     directx->camera.direction = vec3(0.0f, 0.0f, 1.0f);
     directx->camera.up = vec3(0.0f, 1.0f, 0.0f);
     

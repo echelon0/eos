@@ -1,4 +1,4 @@
-
+#include <atlstr.h>  
 /*
   TODO:
   Change camera direction with mouse drag
@@ -52,6 +52,7 @@ static INPUT_STATE global_input;
 #include "renderer.cpp"
 #include "editor.cpp"
 #include "file_loader.cpp"
+#include "game.cpp"
 
 LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
     LRESULT result = 0;
@@ -228,6 +229,34 @@ void reset_input() {
     global_input.RIGHT_CLICKED = false;
 }
 
+void editor_camera_control(D3D_RESOURCE *directx) {
+    if(global_input.W_KEY) {
+        directx->camera.position += directx->camera.direction * 0.1f;
+    }
+    if(global_input.S_KEY) {
+        directx->camera.position -= directx->camera.direction * 0.1f;
+    }
+    if(global_input.A_KEY) {
+        directx->camera.position += cross(directx->camera.direction, directx->camera.up) * 0.1f;
+    }
+    if(global_input.D_KEY) {
+        directx->camera.position -= cross(directx->camera.direction, directx->camera.up) * 0.1f;
+    }
+    if(global_input.SPACE_BAR && !global_input.SHIFT_KEY) {
+        directx->camera.position += directx->camera.up * 0.1f;
+    }
+    if(global_input.SPACE_BAR && global_input.SHIFT_KEY) {
+        directx->camera.position -= directx->camera.up * 0.1f;
+    }
+    
+    if(global_input.RIGHT_ARROW) {
+        rotate(&directx->camera.direction, 0.01f, Y_AXIS);
+    }
+    if(global_input.LEFT_ARROW) {
+        rotate(&directx->camera.direction, -0.01f, Y_AXIS);
+    }        
+}
+
 int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     ivec2 window_dim = ivec2(960, 580);
     ivec2 window_pos;
@@ -262,13 +291,13 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             D3D_RESOURCE *directx = (D3D_RESOURCE *)malloc(sizeof(*directx));
 
             if(init_D3D(window, directx)) {
-                Entity test_entity = {0, load_obj("../assets/models/robot_bust.OBJ"), false};
-                Entity test_entity2 = {0, load_obj("../assets/models/cube.OBJ"), false};
-                Array<Entity> entities;
-                entities.push_back(test_entity);
-                entities.push_back(test_entity2);
-                set_vertex_buffer(directx, entities);
-                    
+                GameState game_state;
+                bool edit_mode = false;
+                Entity test_entity = {0, load_obj("../assets/models/terrain.OBJ"), false};
+                game_state.entities.push_back(test_entity);
+                set_vertex_buffer(directx, game_state.entities);
+
+                init_grid(&game_state.grid, game_state.entities);
                 global_is_running = true;
                 int picked_entity = -1;
                 while(global_is_running) {
@@ -278,31 +307,32 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         DispatchMessage(&message);
                     }
                     process_input();
+                    CString s;
+                    s.Format(_T("%f"), temp_global_cam_y);
+                    SetWindowText(window, s);
+                    if(edit_mode) {
+                        if(global_input.RIGHT_MOUSE_BUTTON) {
+                            if(abs(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x) > abs(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.y)) {
+                                directx->camera.rotate(-global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x*2.0f, Y_AXIS);
+                            } else if(abs(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x) < abs(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.y)) {
+                                directx->camera.rotate(-global_input.PER_FRAME_DRAG_VECTOR_PERCENT.y*2.0f, X_AXIS);
+                            }
+                        }
                     
-                    if(global_input.PER_FRAME_DRAG_VECTOR.x > 0)
-                        SetWindowText(window, "greater");
-                    else
-                        SetWindowText(window, "less");
+                        if(global_input.LEFT_CLICKED) {
+                            picked_entity = editor::get_picked_entity_index(directx->camera, vec3(0.0f, 1.0f, 0.0f), global_input.CURRENT_POS, client_dim, 45.0f, 16.0f/9.0f, game_state.entities);
+                            for(int i = 0; i < game_state.entities.size; i++) {
+                                game_state.entities[i].selected = false;
+                                if(picked_entity != -1)
+                                    game_state.entities[picked_entity].selected = true;
+                            }
+                        }
+                        
+                        editor_camera_control(directx);
+                    }
 
-                    if(global_input.RIGHT_MOUSE_BUTTON) {
-                        if(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x != 0.0f) {
-                            directx->camera.rotate(-global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x*2.0f, Y_AXIS);
-                        }
-                        if(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.y != 0.0f) {
-                            directx->camera.rotate(-global_input.PER_FRAME_DRAG_VECTOR_PERCENT.y*2.0f, X_AXIS);
-                        }
-                    }
-                    
-                    if(global_input.LEFT_CLICKED) {
-                        picked_entity = editor::get_picked_entity_index(directx->camera, vec3(0.0f, 1.0f, 0.0f), global_input.CURRENT_POS, client_dim, 45.0f, 16.0f/9.0f, entities);
-                        for(int i = 0; i < entities.size; i++) {
-                            entities[i].selected = false;
-                            if(picked_entity != -1)
-                                entities[picked_entity].selected = true;
-                        }
-                    }
-                    
-                    if(!draw_frame(directx, entities)) break;
+                    game_update(&game_state, directx);
+                    if(!draw_frame(directx, game_state.entities)) break;
                     
                     reset_input();
                 }

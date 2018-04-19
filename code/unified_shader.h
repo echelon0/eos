@@ -77,10 +77,12 @@ void gs_main(triangle VS_OUT input[3], inout TriangleStream<GS_OUT> triangle_str
 }
 
 float4 ps_main(GS_OUT input) : SV_TARGET {
-    uint intensity_levels = 4;
-    float3 light_direction = float3(0.5f, 0.0f, 0.5f);
+    float3 light_direction = float3(0.5f, -0.5f, 0.0f);
     float light_intensity = abs(dot(light_direction, normalize(input.normal)));
-    light_intensity = floor(light_intensity * intensity_levels) / intensity_levels;
+    { //toon shading
+        //uint intensity_levels = 5;
+        //light_intensity = floor(light_intensity * intensity_levels) / intensity_levels;
+    }
     float4 color = float4(light_intensity, light_intensity, light_intensity, 1.0f);
 
     // solid wire frame
