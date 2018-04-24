@@ -293,6 +293,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             if(init_D3D(window, directx)) {
                 GameState game_state;
                 bool edit_mode = false;
+                //Entity test_entity = {0, load_obj("../assets/models/cube.OBJ"), false};
                 Entity test_entity = {0, load_obj("../assets/models/terrain.OBJ"), false};
                 game_state.entities.push_back(test_entity);
                 set_vertex_buffer(directx, game_state.entities);
