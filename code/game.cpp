@@ -1,44 +1,96 @@
 
 #include "grid.cpp"
 
+struct Player {
+    float current_speed;
+    float walk_speed;
+    float run_speed;
+    float target_speed;
+};
+
 struct GameState {
+    bool initialized;
     Array<Entity> entities;
     Grid grid;
+    float camera_target_y;
+    Player player;
 };
-float temp_global_cam_y;
 
 void game_update(GameState *game_state, D3D_RESOURCE *directx) {
-    if(global_input.W_KEY) {
-        directx->camera.position += directx->camera.direction * 0.005f;
+    if(!game_state->initialized) {
+        game_state->player.walk_speed = 0.15f;
+        game_state->player.run_speed = 0.25f;
+        game_state->player.current_speed = game_state->player.walk_speed;
+        game_state->player.target_speed = game_state->player.current_speed;
+        
+        game_state->initialized = true;
     }
-    if(global_input.S_KEY) {
-        directx->camera.position -= directx->camera.direction * 0.005f;
-    }
-    if(global_input.A_KEY) {
-        directx->camera.position += cross(directx->camera.direction, directx->camera.up) * 0.005f;
-    }
-    if(global_input.D_KEY) {
-        directx->camera.position -= cross(directx->camera.direction, directx->camera.up) * 0.005f;
-    }
-    if(global_input.SPACE_BAR && !global_input.SHIFT_KEY) {
-        directx->camera.position += directx->camera.up * 0.08f;
-    }
-    if(global_input.SPACE_BAR && global_input.SHIFT_KEY) {
-        directx->camera.position -= directx->camera.up * 0.08f;
+
+    { //player movement
+        if(global_input.SHIFT_KEY) {
+            game_state->player.target_speed = game_state->player.run_speed;
+        } else {
+            game_state->player.target_speed = game_state->player.walk_speed;;
+        }
+        game_state->player.current_speed = lerp(game_state->player.current_speed, game_state->player.target_speed, 0.1f);
+
+        float diagonal_speed_multiplier = 1.0f;
+        if(global_input.W_KEY) {
+            if(global_input.A_KEY || global_input.D_KEY) {
+                diagonal_speed_multiplier = (float)sin((float)PI / 4.0f);
+            }
+            directx->camera.position += directx->camera.direction * game_state->player.current_speed * diagonal_speed_multiplier;
+        }
+        if(global_input.S_KEY) {
+            if(global_input.A_KEY || global_input.D_KEY) {
+                diagonal_speed_multiplier = (float)sin((float)PI / 4.0f);
+            }
+            directx->camera.position -= directx->camera.direction * game_state->player.walk_speed * diagonal_speed_multiplier;
+        }
+        if(global_input.A_KEY) {
+            directx->camera.position += cross(directx->camera.direction, directx->camera.up) * game_state->player.current_speed * diagonal_speed_multiplier;
+        }
+        if(global_input.D_KEY) {
+            directx->camera.position -= cross(directx->camera.direction, directx->camera.up) * game_state->player.current_speed * diagonal_speed_multiplier;
+        }
     }
     
-    if(global_input.RIGHT_ARROW) {
-        rotate(&directx->camera.direction, 0.005f, Y_AXIS);
-    }
-    if(global_input.LEFT_ARROW) {
-        rotate(&directx->camera.direction, -0.005f, Y_AXIS);
+    { //camera look around
+        float upper_angle_constraint = dtr(20.0f);
+        float lower_angle_constraint = dtr(165.0f);
+        float max_rotation = dtr(20.0f);
+        { // left-right rotation
+            float rotation_angle = global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x;
+            if(rotation_angle > max_rotation) {
+                rotation_angle = max_rotation;
+            }
+            directx->camera.rotate(rotation_angle, Y_AXIS);
+        }   
+        { // up-down rotation
+            float rotation_angle = global_input.PER_FRAME_DRAG_VECTOR_PERCENT.y;
+            if(rotation_angle > max_rotation) {
+                rotation_angle = max_rotation;
+            }
+            float z_angle = (float)acos(dot(vec3(0.0f, 1.0f, 0.0f), directx->camera.direction));
+            
+            float dist_to_upper = z_angle - upper_angle_constraint;
+            float dist_to_lower = lower_angle_constraint - z_angle;
+            if(rotation_angle < 0.0f) {
+                if(abs(rotation_angle) > dist_to_upper)
+                    rotation_angle = -dist_to_upper;
+            } else {
+                if(rotation_angle > dist_to_lower)
+                    rotation_angle = dist_to_lower;
+            }
+            directx->camera.rotate(rotation_angle, CAMERA_RIGHT);
+        }
     }
 
     { //adjust camera above above the ground
         float camera_height = 1.25f;
+        float forward_push = 0.0f;
         
-        float forward_push = 0.01f;
-        vec3 adjusted_camera_position = directx->camera.position + directx->camera.direction * forward_push;
+        vec3 adjusted_camera_position = directx->camera.position + directx->camera.direction * forward_push + vec3(0.0f, 0.01f, 0.0f);
         int cell_index = get_cell_index(&game_state->grid, find_appropriate_cell(game_state->grid.cell_radius, vec2(adjusted_camera_position.x, adjusted_camera_position.z)));
         if(cell_index != -1) {
             for(int i = 0; i < game_state->grid.cells[cell_index].vertex_attributes.size; i+=3) {
@@ -50,33 +102,15 @@ void game_update(GameState *game_state, D3D_RESOURCE *directx) {
                                            intersection)) {
                     vec3 ro_to_intersection = intersection - directx->camera.position;
                     float t = -ro_to_intersection.y;
-                    temp_global_cam_y = t;
-                    directx->camera.position.y -= (t - camera_height);
+                    game_state->camera_target_y = directx->camera.position.y - (t - camera_height);
                     break;
                 }
             }
         }
-    }
 
-    //temp_global_cam_y = directx->camera.position.y;
-
-    /*
-    float camera_height = 1.25f;
-    for(int entity_index = 0; entity_index < game_state->entities.size; entity_index++) {
-        for(int i = 0; i < game_state->entities[entity_index].model.vertex_attributes.size; i+=3) {    
-            vec3 intersection;
-            if(ray_intersects_triangle(directx->camera.position + directx->camera.direction * 0.01f, vec3(0.0f, -1.0f, 0.0f),
-                                       game_state->entities[entity_index].model.vertex_attributes[i + 0].position,
-                                       game_state->entities[entity_index].model.vertex_attributes[i + 1].position,
-                                       game_state->entities[entity_index].model.vertex_attributes[i + 2].position,
-                                       intersection)) {
-                vec3 ro_to_intersection = intersection - directx->camera.position;
-                float t = abs(ro_to_intersection.y);
-                temp_global_cam_y = t;
-                directx->camera.position.y -= (t - camera_height);
-                break;
-            }
+        if((directx->camera.position.y != game_state->camera_target_y)) {
+            directx->camera.position.y = lerp(directx->camera.position.y, game_state->camera_target_y, 0.2f);
         }
-    }
-    */
+    }   
+
 }

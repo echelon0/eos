@@ -39,21 +39,20 @@ void init_grid(Grid *grid, Array<Entity> &entities) {
     for(int entity_index = 0; entity_index < entities.size; entity_index++) {
         for(int i = 0; i < entities[entity_index].model.vertex_attributes.size; i+=3) {
 
-            //TODO: find a 2d bounding box directly
             //find bouding box of triangle
-            vec3 min = entities[entity_index].model.vertex_attributes[i + 0].position;
-            vec3 max = entities[entity_index].model.vertex_attributes[i + 0].position;
-            for (int v = i; v < 3; v++) {
+            //NOTE: y coordinate in vec2 represents a z coordinate in world space
+            vec2 min = vec2(entities[entity_index].model.vertex_attributes[i + 0].position.x, entities[entity_index].model.vertex_attributes[i + 0].position.z);
+            vec2 max = vec2(entities[entity_index].model.vertex_attributes[i + 0].position.x, entities[entity_index].model.vertex_attributes[i + 0].position.z);
+            for (int v = i; v < i + 3; v++) {
                 if(entities[entity_index].model.vertex_attributes[v].position.x < min.x) min.x = entities[entity_index].model.vertex_attributes[v].position.x;
-                if(entities[entity_index].model.vertex_attributes[v].position.y < min.y) min.y = entities[entity_index].model.vertex_attributes[v].position.y;
-                if(entities[entity_index].model.vertex_attributes[v].position.z < min.z) min.z = entities[entity_index].model.vertex_attributes[v].position.z;
-                if(entities[entity_index].model.vertex_attributes[v].position.x > max.x) max.x = entities[entity_index].model.vertex_attributes[v].position.x;
-                if(entities[entity_index].model.vertex_attributes[v].position.y > max.y) max.y = entities[entity_index].model.vertex_attributes[v].position.y;
-                if(entities[entity_index].model.vertex_attributes[v].position.z > max.z) max.z = entities[entity_index].model.vertex_attributes[v].position.z;
-            }
+                if(entities[entity_index].model.vertex_attributes[v].position.z < min.y) min.y = entities[entity_index].model.vertex_attributes[v].position.z;
                 
-            vec2 min_cell_center = find_appropriate_cell(grid->cell_radius, vec2(min.x, min.z));
-            vec2 max_cell_center = find_appropriate_cell(grid->cell_radius, vec2(max.x, max.z));
+                if(entities[entity_index].model.vertex_attributes[v].position.x > max.x) max.x = entities[entity_index].model.vertex_attributes[v].position.x;
+                if(entities[entity_index].model.vertex_attributes[v].position.z > max.y) max.y = entities[entity_index].model.vertex_attributes[v].position.z;
+            }
+            
+            vec2 min_cell_center = find_appropriate_cell(grid->cell_radius, vec2(min.x, min.y));
+            vec2 max_cell_center = find_appropriate_cell(grid->cell_radius, vec2(max.x, max.y));
             
             for(float x = min_cell_center.x; x <= max_cell_center.x; x += grid->cell_radius*2) {
                 for(float z = min_cell_center.y; z <= max_cell_center.y; z += grid->cell_radius*2) {

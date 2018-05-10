@@ -16,32 +16,65 @@ struct Entity {
     bool selected; //solid wireframe on/off
 };
 
+#define CAMERA_RIGHT 4
+#define CAMERA_UP    5
+#define CAMERA_DIR   6
+
 struct Camera {
     vec3 position;
     vec3 direction;
     vec3 up;
 
     void rotate(vec3 *vector, float angle, int axis_of_rotation) {
+        vec3 vec = *vector;
         switch(axis_of_rotation) {
             case X_AXIS: {
-                vector->y = vector->y * (float)cos(angle) + vector->z * -1*(float)sin(angle);
-                vector->z = vector->y * (float)sin(angle) + vector->z * (float)cos(angle);
+                vector->y = vec.y * (float)cos(angle) + vec.z * -1*(float)sin(angle);
+                vector->z = vec.y * (float)sin(angle) + vec.z * (float)cos(angle);
             } break;
         
             case Y_AXIS: {
-                vector->x = vector->x * (float)cos(angle) + vector->z * (float)sin(angle);
-                vector->z = vector->x * -1*(float)sin(angle) + vector->z * (float)cos(angle);
+                vector->x = vec.x * (float)cos(angle) + vec.z * (float)sin(angle);
+                vector->z = vec.x * -1*(float)sin(angle) + vec.z * (float)cos(angle);
             } break;
         
             case Z_AXIS: {
-                vector->x = vector->x * (float)cos(angle) + vector->y * -1*(float)sin(angle);
-                vector->y = vector->x * (float)sin(angle) + vector->y * (float)cos(angle);      
+                vector->x = vec.x * (float)cos(angle) + vec.y * -1*(float)sin(angle);
+                vector->y = vec.x * (float)sin(angle) + vec.y * (float)cos(angle);      
             } break;
         }
     }
+
+    static void 
+    rotate(vec3 *vector, float angle, vec3 *point, vec3 *line) { //rotates vector about "line" going through "point"
+        vec3 vec = *vector;
+        vector->x = (point->x*(line->y*line->y + line->z*line->z) - line->x*(point->y*line->y + point->z*line->z - line->x*vec.x - line->y*vec.y - line->z*vec.z)) *
+            (1.0f - (float)cos(angle)) + vec.x*(float)cos(angle) + ((-point->z)*line->y + point->y*line->z - line->z*vec.y + line->y*vec.z) * (float)sin(angle);
+    
+        vector->y = (point->y*(line->x*line->x + line->z*line->z) - line->y*(point->x*line->x + point->z*line->z - line->x*vec.x - line->y*vec.y - line->z*vec.z)) *
+            (1.0f - (float)cos(angle)) + vec.y*(float)cos(angle) + (point->z*line->x - point->x*line->z + line->z*vec.x - line->x*vec.z) * (float)sin(angle);
+    
+        vector->z = (point->z*(line->x*line->x + line->y*line->y) - line->z*(point->x*line->x + point->y*line->y - line->x*vec.x - line->y*vec.y - line->z*vec.z)) *
+            (1.0f - (float)cos(angle)) + vec.z*(float)cos(angle) + ((-point->y)*line->x + point->x*line->y - line->y*vec.x + line->x*vec.y) * (float)sin(angle);
+    }
+    
     void rotate(float angle, int axis_of_rotation) {
-        rotate(&direction, angle, axis_of_rotation);
-        rotate(&up, angle, axis_of_rotation);   
+        vec3 right = normalize(cross(up, direction));
+        
+        if((axis_of_rotation == X_AXIS) || (axis_of_rotation == Y_AXIS) || (axis_of_rotation == Z_AXIS)) {
+            rotate(&direction, angle, axis_of_rotation);
+            rotate(&up, angle, axis_of_rotation);           
+        } else {
+            if(axis_of_rotation == CAMERA_RIGHT) {
+                vec3 origin = vec3(0.0f, 0.0f, 0.0f);
+                rotate(&direction, angle, &origin, &right);
+                rotate(&up, angle, &origin, &right);
+            } else if(axis_of_rotation == CAMERA_UP) {
+                rotate(&direction, angle, &position, &up);
+            } 
+        }
+        direction = normalize(direction);
+        up = normalize(up);        
     }
 };
 
@@ -190,8 +223,8 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
     swap_chain_desc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED; //specifies what method the raster uses to create an image
     swap_chain_desc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED; //specifies how to stretch and image to the screen
 
-    swap_chain_desc.SampleDesc.Count = 1; //count=1,quality=0 turns off multisampling
-    swap_chain_desc.SampleDesc.Quality = 0;
+    swap_chain_desc.SampleDesc.Count = 4; //count=1,quality=0 turns off multisampling
+    swap_chain_desc.SampleDesc.Quality = 16;
 
     swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swap_chain_desc.OutputWindow = window;
@@ -299,7 +332,7 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
         raster_desc.SlopeScaledDepthBias = 0;
         raster_desc.DepthClipEnable = false;
         raster_desc.ScissorEnable = 0;
-        raster_desc.MultisampleEnable = 0;
+        raster_desc.MultisampleEnable = 1;
         raster_desc.AntialiasedLineEnable = 0;
     
         HRESULT raster_state_hr = directx->device->CreateRasterizerState(&raster_desc, &directx->rasterizer_state);
@@ -331,8 +364,8 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
         depth_stencil_texture_desc.MipLevels = 1;
         depth_stencil_texture_desc.ArraySize = 1;
         depth_stencil_texture_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-        depth_stencil_texture_desc.SampleDesc.Count = 1;
-        depth_stencil_texture_desc.SampleDesc.Quality = 0;
+        depth_stencil_texture_desc.SampleDesc.Count = 4; 
+        depth_stencil_texture_desc.SampleDesc.Quality = 16;
         depth_stencil_texture_desc.Usage = D3D11_USAGE_DEFAULT;
         depth_stencil_texture_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
         depth_stencil_texture_desc.CPUAccessFlags = 0;
@@ -361,7 +394,7 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
    
         D3D11_DEPTH_STENCIL_VIEW_DESC depth_stencil_view_desc = {};
         depth_stencil_view_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-        depth_stencil_view_desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+        depth_stencil_view_desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
         depth_stencil_view_desc.Flags = 0;
         depth_stencil_view_desc.Texture2D.MipSlice = 0;
 

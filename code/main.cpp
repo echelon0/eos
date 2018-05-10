@@ -1,8 +1,12 @@
 #include <atlstr.h>  
 /*
   TODO:
-  Change camera direction with mouse drag
- */
+  Detect window dimension
+  Make sure MSAA can be configured properly on any machine (quality/sample count)
+  Materials
+  Textures
+  Entity transform/rotation
+*/
 
 
 #define LOG_ERROR(Title, Message) MessageBoxA(0, Message, Title, MB_OK|MB_ICONERROR)
@@ -16,6 +20,9 @@
 #include "array.h"
 
 struct INPUT_STATE {
+    ivec2 client_center;
+    bool ESC_KEY;
+    
     bool W_KEY;
     bool A_KEY;                    
     bool S_KEY;
@@ -68,6 +75,9 @@ LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPara
 
         case WM_KEYDOWN: {
             switch(wParam) {
+                case VK_ESCAPE: {
+                    global_input.ESC_KEY = true;
+                } break;
                 case 'W': {
                     global_input.W_KEY = true;
                 } break;
@@ -106,6 +116,9 @@ LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPara
 
         case WM_KEYUP: {
             switch(wParam) {
+                case VK_ESCAPE: {
+                    global_input.ESC_KEY = false;
+                } break;
                 case 'W': {
                     global_input.W_KEY = false;
                 } break;
@@ -187,7 +200,7 @@ LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPara
 
 void process_input() {
     if(global_input.SET_DRAG_VECTOR) {
-        global_input.PER_FRAME_DRAG_VECTOR = global_input.CURRENT_POS - global_input.PREV_POS;
+        global_input.PER_FRAME_DRAG_VECTOR = global_input.CURRENT_POS - global_input.client_center;
         global_input.PER_FRAME_DRAG_VECTOR_PERCENT = vec2((float)global_input.PER_FRAME_DRAG_VECTOR.x / (float)GetSystemMetrics(SM_CXSCREEN),
                                                           (float)global_input.PER_FRAME_DRAG_VECTOR.y / (float)GetSystemMetrics(SM_CYSCREEN));
     }
@@ -257,8 +270,21 @@ void editor_camera_control(D3D_RESOURCE *directx) {
     }        
 }
 
+float get_elapsed_time(LARGE_INTEGER begin_count) {
+    timeBeginPeriod(1);
+    LARGE_INTEGER frequency;
+    if(QueryPerformanceFrequency(&frequency)) {
+        LARGE_INTEGER count;
+        QueryPerformanceCounter(&count);
+        timeEndPeriod(1);
+        return ((float)(count.QuadPart - begin_count.QuadPart) / (float)frequency.QuadPart) * 1000.0f; // time in miliseconds
+    } else {
+        return (float)GetTickCount();
+    }
+}
+
 int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-    ivec2 window_dim = ivec2(960, 580);
+    ivec2 window_dim = ivec2(1920, 1080);//ivec2(960, 580);
     ivec2 window_pos;
     int screen_width = GetSystemMetrics(SM_CXSCREEN);
     int screen_height = GetSystemMetrics(SM_CYSCREEN);
@@ -284,58 +310,90 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             hInstance, 0);
         
         if(window) {
+            global_input = {};
+            ShowCursor(0);
+            
             RECT client_rect;
             GetClientRect(window, &client_rect);
             ivec2 client_dim = ivec2(client_rect.right, client_rect.bottom);
-            global_input = {};
+            global_input.client_center = client_dim / 2;
+            POINT client_center_pt = {(LONG)global_input.client_center.x, (LONG)global_input.client_center.y};
+            ClientToScreen(window, &client_center_pt);
+
             D3D_RESOURCE *directx = (D3D_RESOURCE *)malloc(sizeof(*directx));
 
             if(init_D3D(window, directx)) {
-                GameState game_state;
+                GameState game_state = {};
                 bool edit_mode = false;
                 //Entity test_entity = {0, load_obj("../assets/models/cube.OBJ"), false};
-                Entity test_entity = {0, load_obj("../assets/models/terrain.OBJ"), false};
+                Entity test_entity = {0, load_obj("../assets/models/untitled.OBJ"), false};
                 game_state.entities.push_back(test_entity);
                 set_vertex_buffer(directx, game_state.entities);
 
                 init_grid(&game_state.grid, game_state.entities);
                 global_is_running = true;
                 int picked_entity = -1;
+
+                float FRAME_RATE = 60.0f;
+                float FRAME_FREQUENCY = (1000.0f / FRAME_RATE);
                 while(global_is_running) {
+                    LARGE_INTEGER begin_count;
+                    QueryPerformanceCounter(&begin_count);
+                    
                     MSG message;
                     while(PeekMessage(&message, window, 0, 0, PM_REMOVE)) {
                         TranslateMessage(&message);
                         DispatchMessage(&message);
                     }
+                    if(global_input.ESC_KEY) {
+                        global_is_running = false;
+                        break;
+                    }
                     process_input();
-                    CString s;
-                    s.Format(_T("%f"), temp_global_cam_y);
-                    SetWindowText(window, s);
-                    if(edit_mode) {
-                        if(global_input.RIGHT_MOUSE_BUTTON) {
-                            if(abs(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x) > abs(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.y)) {
-                                directx->camera.rotate(-global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x*2.0f, Y_AXIS);
-                            } else if(abs(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x) < abs(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.y)) {
-                                directx->camera.rotate(-global_input.PER_FRAME_DRAG_VECTOR_PERCENT.y*2.0f, X_AXIS);
+
+                    { //EDIT MODE
+                        if(edit_mode) {
+                            if(global_input.RIGHT_MOUSE_BUTTON) {
+                                if(abs(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x) > abs(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.y)) {
+                                    directx->camera.rotate(-global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x*2.0f, Y_AXIS);
+                                } else if(abs(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x) < abs(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.y)) {
+                                    directx->camera.rotate(-global_input.PER_FRAME_DRAG_VECTOR_PERCENT.y*2.0f, X_AXIS);
+                                }
                             }
-                        }
                     
-                        if(global_input.LEFT_CLICKED) {
-                            picked_entity = editor::get_picked_entity_index(directx->camera, vec3(0.0f, 1.0f, 0.0f), global_input.CURRENT_POS, client_dim, 45.0f, 16.0f/9.0f, game_state.entities);
-                            for(int i = 0; i < game_state.entities.size; i++) {
-                                game_state.entities[i].selected = false;
-                                if(picked_entity != -1)
-                                    game_state.entities[picked_entity].selected = true;
+                            if(global_input.LEFT_CLICKED) {
+                                picked_entity = editor::get_picked_entity_index(directx->camera, vec3(0.0f, 1.0f, 0.0f), global_input.CURRENT_POS, client_dim, 45.0f, 16.0f/9.0f, game_state.entities);
+                                for(int i = 0; i < game_state.entities.size; i++) {
+                                    game_state.entities[i].selected = false;
+                                    if(picked_entity != -1)
+                                        game_state.entities[picked_entity].selected = true;
+                                }
                             }
+                            editor_camera_control(directx);
                         }
-                        
-                        editor_camera_control(directx);
                     }
 
                     game_update(&game_state, directx);
                     if(!draw_frame(directx, game_state.entities)) break;
                     
                     reset_input();
+
+                    float frame_duration = get_elapsed_time(begin_count);
+                    if(frame_duration < FRAME_FREQUENCY) {
+                        Sleep((DWORD)(FRAME_FREQUENCY - frame_duration));
+                    }
+
+                    // set mouse cursor to center of screen
+                    if(!edit_mode) {
+                        SetCursorPos(client_center_pt.x, client_center_pt.y);
+                    }
+                    
+                    // REMOVE:
+                    frame_duration = get_elapsed_time(begin_count);
+                    CString s;
+                    s.Format(_T("%f"), frame_duration);
+                    SetWindowText(window, s);
+                    //////
                 }
             } 
         }

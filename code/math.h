@@ -24,6 +24,13 @@ struct ivec2 {
     bool operator == (ivec2 rhs) {
         return (this->x == rhs.x) && (this->y == rhs.y);
     }
+
+    ivec2 operator / (int scalar) {
+        return ivec2(this->x / scalar, this->y / scalar);
+    }
+    ivec2 operator / (ivec2 rhs) {
+        return ivec2(this->x / rhs.x, this->y / rhs.y);
+    }
 };
 
 
@@ -83,6 +90,10 @@ struct vec3 {
 
     bool operator == (vec3 rhs) {
         return (this->x == rhs.x) && (this->y == rhs.y) && (this->z == rhs.z);
+    }
+
+    bool operator != (vec3 rhs) {
+        return !(*this == rhs);
     }
 };
 
@@ -506,22 +517,36 @@ scale(vec3 *vector, float x, float y, float z) {
 
 static void
 rotate(vec3 *vector, float angle, int axis_of_rotation) {
+    vec3 vec = *vector;
     switch(axis_of_rotation) {
         case X_AXIS: {
-            vector->y = vector->y * (float)cos(angle) + vector->z * -1*(float)sin(angle);
-            vector->z = vector->y * (float)sin(angle) + vector->z * (float)cos(angle);
+            vector->y = vec.y * (float)cos(angle) + vec.z * -1*(float)sin(angle);
+            vector->z = vec.y * (float)sin(angle) + vec.z * (float)cos(angle);
         } break;
         
         case Y_AXIS: {
-            vector->x = vector->x * (float)cos(angle) + vector->z * (float)sin(angle);
-            vector->z = vector->x * -1*(float)sin(angle) + vector->z * (float)cos(angle);
+            vector->x = vec.x * (float)cos(angle) + vec.z * (float)sin(angle);
+            vector->z = vec.x * -1*(float)sin(angle) + vec.z * (float)cos(angle);
         } break;
         
         case Z_AXIS: {
-            vector->x = vector->x * (float)cos(angle) + vector->y * -1*(float)sin(angle);
-            vector->y = vector->x * (float)sin(angle) + vector->y * (float)cos(angle);      
+            vector->x = vec.x * (float)cos(angle) + vec.y * -1*(float)sin(angle);
+            vector->y = vec.x * (float)sin(angle) + vec.y * (float)cos(angle);      
         } break;
     }
+}
+
+static void 
+rotate(vec3 *vector, float angle, vec3 *point, vec3 *line) { //rotates vector about "line" going through "point"
+    vec3 vec = *vector;
+    vector->x = (point->x*(line->y*line->y + line->z*line->z) - line->x*(point->y*line->y + point->z*line->z - line->x*vec.x - line->y*vec.y - line->z*vec.z)) *
+        (1.0f - (float)cos(angle)) + vec.x*(float)cos(angle) + ((-point->z)*line->y + point->y*line->z - line->z*vec.y + line->y*vec.z) * (float)sin(angle);
+    
+    vector->y = (point->y*(line->x*line->x + line->z*line->z) - line->y*(point->x*line->x + point->z*line->z - line->x*vec.x - line->y*vec.y - line->z*vec.z)) *
+        (1.0f - (float)cos(angle)) + vec.y*(float)cos(angle) + (point->z*line->x - point->x*line->z + line->z*vec.x - line->x*vec.z) * (float)sin(angle);
+    
+    vector->z = (point->z*(line->x*line->x + line->y*line->y) - line->z*(point->x*line->x + point->y*line->y - line->x*vec.x - line->y*vec.y - line->z*vec.z)) *
+        (1.0f - (float)cos(angle)) + vec.z*(float)cos(angle) + ((-point->y)*line->x + point->x*line->y - line->y*vec.x + line->x*vec.y) * (float)sin(angle);
 }
 
 inline float
@@ -647,8 +672,18 @@ perspective(float FOV, float aspect, float z_near, float z_far) {
     return result;
 }
 
+inline float
+lerp(float a, float b, float t) {
+    return t*b + (1-t)*a;
+}
+
 inline vec2
 lerp(vec2 a, vec2 b, float t) {
+    return t*b + (1-t)*a;
+}
+
+inline vec3
+lerp(vec3 a, vec3 b, float t) {
     return t*b + (1-t)*a;
 }
 
@@ -735,4 +770,7 @@ ceil(float x) {
     return (x < 0) ? ((float)(int)x) : ((float)(int)x + 1.0f);
 }
 
-
+inline float
+dtr(float degrees) {
+    return (degrees / 180.0f) * (float)PI;
+}
