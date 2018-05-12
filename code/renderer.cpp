@@ -1,9 +1,10 @@
 
 struct Material {
-    float ambient;
-    float diffuse;
-    float specular;
     float exponent;
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float dissolve;
     int illum_model;
 };
 

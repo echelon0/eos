@@ -328,11 +328,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 
                 //entity creation
                 StaticModel model;
-                model = load_obj("cube.obj");
+                model = load_obj("terrain.obj");
                 if(model.vertex_attributes.size == 0) { global_is_running = false; }
                 Entity test_entity = {0, model, false};
-                
-                //Entity test_entity = {0, load_obj("terrain.obj"), false};
                 game_state.entities.push_back(test_entity);             
                 
                 bool initialized = false;

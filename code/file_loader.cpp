@@ -57,6 +57,51 @@ StaticModel load_obj(char *file_name) {
         delete full_error_msg;
         return loaded_model;
     }
+
+    char line_id[2048];
+    struct MaterialWithID {
+        char name[1024];
+        Material mat;
+    };
+    Array<MaterialWithID> materials;
+    while(fscanf(mtl_file_handle, "%s", line_id) != EOF) {
+        if(strcmp(line_id, "newmtl") == 0) {
+            MaterialWithID mat;
+            fscanf(mtl_file_handle, "%s", mat.name);
+            materials.push_back(mat);
+            
+        } else if(strcmp(line_id, "Ns") == 0) { //specular exponent
+            fscanf(mtl_file_handle, "%f", &materials[materials.size - 1].mat.exponent);
+            
+        } else if(strcmp(line_id, "Ka") == 0) { //ambient
+            fscanf(mtl_file_handle, "%f%f%f\n",
+                   &materials[materials.size - 1].mat.ambient.x,
+                   &materials[materials.size - 1].mat.ambient.y,
+                   &materials[materials.size - 1].mat.ambient.z);
+            
+        } else if(strcmp(line_id, "Kd") == 0) { //diffuse
+            fscanf(mtl_file_handle, "%f%f%f\n",
+                   &materials[materials.size - 1].mat.diffuse.x,
+                   &materials[materials.size - 1].mat.diffuse.y,
+                   &materials[materials.size - 1].mat.diffuse.z);
+            
+        } else if(strcmp(line_id, "Ks") == 0) { //specular
+            fscanf(mtl_file_handle, "%f%f%f\n",
+                   &materials[materials.size - 1].mat.specular.x,
+                   &materials[materials.size - 1].mat.specular.y,
+                   &materials[materials.size - 1].mat.specular.z);
+            
+        } else if(strcmp(line_id, "d") == 0) { //dissolve
+            fscanf(mtl_file_handle, "%f\n", &materials[materials.size - 1].mat.dissolve);
+            
+        } else if(strcmp(line_id, "Tr") == 0) { //1 - dissolve
+            fscanf(mtl_file_handle, "%f\n", &materials[materials.size - 1].mat.dissolve);
+            materials[materials.size - 1].mat.dissolve = 1.0f - materials[materials.size - 1].mat.dissolve;
+            
+        }  else if(strcmp(line_id, "illum") == 0) { //illumination model
+            fscanf(mtl_file_handle, "%d\n", &materials[materials.size - 1].mat.illum_model);
+        }
+    }
     
     Array<vec3> positions;
     Array<vec3> normals;
@@ -70,7 +115,7 @@ StaticModel load_obj(char *file_name) {
     bool has_vt = false;
     bool has_vn = false;
 
-    char line_id[2048];
+    int current_mat_index = -1;
     while(fscanf(obj_file_handle, "%s", line_id) != EOF) {
         if(strcmp(line_id, "v") == 0) { //vertex position
             fscanf(obj_file_handle, "%f%f%f\n", &position.x, &position.y, &position.z);
@@ -86,6 +131,15 @@ StaticModel load_obj(char *file_name) {
             fscanf(obj_file_handle, "%f%f%f\n", &normal.x, &normal.y, &normal.z);
             normals.push_back(normal);
             has_vn = true;
+
+        } else if(strcmp(line_id, "usemtl") == 0) {
+            char mat_name[1024];
+            fscanf(obj_file_handle, "%s", mat_name);
+            for(int i = 0; i < materials.size; i++) {
+                if(strcmp(materials[i].name, mat_name) == 0) {
+                    current_mat_index = i;
+                }
+            }
             
         } else if(strcmp(line_id, "f") == 0) {
             int v1=0, v2=0, v3=0;
@@ -117,6 +171,13 @@ StaticModel load_obj(char *file_name) {
             temp_vertices[1].normal = temp_vertices[0].normal;
             temp_vertices[2].normal = temp_vertices[0].normal;
             for(int i = 0; i < 3; i++) {
+                temp_vertices[i].material.exponent = materials[current_mat_index].mat.exponent;
+                temp_vertices[i].material.ambient = materials[current_mat_index].mat.ambient;
+                temp_vertices[i].material.diffuse = materials[current_mat_index].mat.diffuse;
+                temp_vertices[i].material.specular = materials[current_mat_index].mat.specular;
+                temp_vertices[i].material.dissolve = materials[current_mat_index].mat.dissolve;
+                temp_vertices[i].material.illum_model = materials[current_mat_index].mat.illum_model;
+                
                 loaded_model.vertex_attributes.push_back(temp_vertices[i]);
             }
         }
