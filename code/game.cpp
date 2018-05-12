@@ -13,6 +13,8 @@ struct GameState {
     Array<Entity> entities;
     Grid grid;
     float camera_target_y;
+    vec2 current_cam_rotation;
+    vec2 target_cam_rotation;
     Player player;
 };
 
@@ -56,15 +58,15 @@ void game_update(GameState *game_state, D3D_RESOURCE *directx) {
     }
     
     { //camera look around
-        float upper_angle_constraint = dtr(20.0f);
-        float lower_angle_constraint = dtr(165.0f);
-        float max_rotation = dtr(20.0f);
+        float upper_angle_constraint = dtr(25.0f);
+        float lower_angle_constraint = dtr(160.0f);
+        float max_rotation = dtr(15.0f);
         { // left-right rotation
             float rotation_angle = global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x;
             if(rotation_angle > max_rotation) {
                 rotation_angle = max_rotation;
             }
-            directx->camera.rotate(rotation_angle, Y_AXIS);
+            game_state->target_cam_rotation.x = rotation_angle;
         }   
         { // up-down rotation
             float rotation_angle = global_input.PER_FRAME_DRAG_VECTOR_PERCENT.y;
@@ -82,8 +84,12 @@ void game_update(GameState *game_state, D3D_RESOURCE *directx) {
                 if(rotation_angle > dist_to_lower)
                     rotation_angle = dist_to_lower;
             }
-            directx->camera.rotate(rotation_angle, CAMERA_RIGHT);
+            game_state->target_cam_rotation.y = rotation_angle;
         }
+        float cam_rotation_lerp_speed = 0.85f;
+        game_state->current_cam_rotation = lerp(game_state->current_cam_rotation, game_state->target_cam_rotation, cam_rotation_lerp_speed);
+        directx->camera.rotate(game_state->current_cam_rotation.x, Y_AXIS);
+        directx->camera.rotate(game_state->current_cam_rotation.y, CAMERA_RIGHT);
     }
 
     { //adjust camera above above the ground

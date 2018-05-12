@@ -1,5 +1,4 @@
 
-
 char * read_file_to_buffer(char *path) {
     FILE *file_handle = fopen(path, "r");
     if(!file_handle) {
@@ -25,15 +24,40 @@ int scan_word(char *str, char *substr) { //returns chars read
     return count;
 }
 
-StaticModel load_obj(char *path) {
+StaticModel load_obj(char *file_name) {
     StaticModel loaded_model = {};
     
-    FILE *file_handle = fopen(path, "r");
-    if(!file_handle) {
+    char folder_path[] = "../assets/models/";
+    int folder_path_length = string_length(folder_path);
+    
+    char *file_path = (char *)malloc((folder_path_length + string_length(file_name) + 1) * sizeof(char));
+    string_copy(file_path, folder_path);
+    string_cat(file_path, file_name);
+        
+    FILE *obj_file_handle = fopen(file_path, "r");
+    if(!obj_file_handle) {
         LOG_ERROR("ERROR", "Cannot open .obj file");
         return loaded_model;
     }
 
+    //mtl file path
+    int file_path_length = string_length(file_path) - 4;
+    char mtl_file_extension[] = ".mtl";
+    for(int i = file_path_length, j = 0; i < file_path_length + 4, j < 4; i++, j++) {
+        file_path[i] = mtl_file_extension[j];
+    }
+
+    FILE *mtl_file_handle = fopen(file_path, "r");
+    if(!mtl_file_handle) {
+        char error_msg[] = "Material file not found for ";
+        char *full_error_msg = (char *)malloc((string_length(error_msg) + string_length(file_name) + 1) * sizeof(char));
+        string_copy(full_error_msg, error_msg);
+        string_cat(full_error_msg, file_name);
+        LOG_ERROR("Message", full_error_msg);
+        delete full_error_msg;
+        return loaded_model;
+    }
+    
     Array<vec3> positions;
     Array<vec3> normals;
     Array<vec2> texcoords;
@@ -47,19 +71,19 @@ StaticModel load_obj(char *path) {
     bool has_vn = false;
 
     char line_id[2048];
-    while(fscanf(file_handle, "%s", line_id) != EOF) {
+    while(fscanf(obj_file_handle, "%s", line_id) != EOF) {
         if(strcmp(line_id, "v") == 0) { //vertex position
-            fscanf(file_handle, "%f%f%f\n", &position.x, &position.y, &position.z);
+            fscanf(obj_file_handle, "%f%f%f\n", &position.x, &position.y, &position.z);
             positions.push_back(position);
             has_v = true;
 
         } else if(strcmp(line_id, "vt") == 0) { //texcoord
-            fscanf(file_handle, "%f%f\n", &texcoord.x, &texcoord.y);
+            fscanf(obj_file_handle, "%f%f\n", &texcoord.x, &texcoord.y);
             texcoords.push_back(texcoord);
             has_vt = true;
             
         } else if(strcmp(line_id, "vn") == 0) { //normal
-            fscanf(file_handle, "%f%f%f\n", &normal.x, &normal.y, &normal.z);
+            fscanf(obj_file_handle, "%f%f%f\n", &normal.x, &normal.y, &normal.z);
             normals.push_back(normal);
             has_vn = true;
             
@@ -69,13 +93,13 @@ StaticModel load_obj(char *path) {
             int vn_placeholder=0;
 
             if(has_v && has_vt && has_vn) { // v/vt/vn
-                fscanf(file_handle, "%d/%d/%d %d/%d/%d %d/%d/%d\n", &v1, &vt1, &vn_placeholder, &v2, &vt2, &vn_placeholder, &v3, &vt3, &vn_placeholder);
+                fscanf(obj_file_handle, "%d/%d/%d %d/%d/%d %d/%d/%d\n", &v1, &vt1, &vn_placeholder, &v2, &vt2, &vn_placeholder, &v3, &vt3, &vn_placeholder);
             } else if(has_v && has_vt && !has_vn) { // v/vt
-                fscanf(file_handle, "%d/%d %d/%d %d/%d\n", &v1, &vt1, &v2, &vt2, &v3, &vt3);
+                fscanf(obj_file_handle, "%d/%d %d/%d %d/%d\n", &v1, &vt1, &v2, &vt2, &v3, &vt3);
             } else if(has_v && !has_vt && has_vn) { // v//vn
-                fscanf(file_handle, "%d//%d %d//%d %d//%d\n", &v1, &vn_placeholder, &v2, &vn_placeholder, &v3, &vn_placeholder);
+                fscanf(obj_file_handle, "%d//%d %d//%d %d//%d\n", &v1, &vn_placeholder, &v2, &vn_placeholder, &v3, &vn_placeholder);
             } else if(has_v && !has_vt && !has_vn) { // v
-                fscanf(file_handle, "%d %d %d\n", &v1, &v2, &v3);
+                fscanf(obj_file_handle, "%d %d %d\n", &v1, &v2, &v3);
             } else {
                 LOG_ERROR("ERROR", "Cannot open .obj");
             }
@@ -97,6 +121,14 @@ StaticModel load_obj(char *path) {
             }
         }
     }
+
+    delete file_path;
+    delete positions.data;
+    delete normals.data;
+    delete texcoords.data;
+
+    fclose(obj_file_handle);
+    fclose(mtl_file_handle);
     
     return loaded_model;
 }

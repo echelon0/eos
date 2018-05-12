@@ -1,8 +1,17 @@
 
+struct Material {
+    float ambient;
+    float diffuse;
+    float specular;
+    float exponent;
+    int illum_model;
+};
+
 struct VertexAttribute {
     vec3 position;
     vec3 normal;
     vec2 texcoord;
+    Material material;
     unsigned int entity_ID;
 };
 

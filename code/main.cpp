@@ -1,7 +1,6 @@
 #include <atlstr.h>  
 /*
   TODO:
-  Detect window dimension
   Make sure MSAA can be configured properly on any machine (quality/sample count)
   Materials
   Textures
@@ -284,10 +283,10 @@ float get_elapsed_time(LARGE_INTEGER begin_count) {
 }
 
 int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-    ivec2 window_dim = ivec2(1920, 1080);//ivec2(960, 580);
-    ivec2 window_pos;
     int screen_width = GetSystemMetrics(SM_CXSCREEN);
     int screen_height = GetSystemMetrics(SM_CYSCREEN);
+    ivec2 window_dim = ivec2(screen_width, screen_height);
+    ivec2 window_pos;    
     window_pos.y = (screen_height - window_dim.y) / 2;
     window_pos.x = (screen_width - window_dim.x) / 2;
     float frame_rate  = 60.0f;
@@ -323,20 +322,31 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             D3D_RESOURCE *directx = (D3D_RESOURCE *)malloc(sizeof(*directx));
 
             if(init_D3D(window, directx)) {
+                global_is_running = true;
                 GameState game_state = {};
                 bool edit_mode = false;
-                //Entity test_entity = {0, load_obj("../assets/models/cube.OBJ"), false};
-                Entity test_entity = {0, load_obj("../assets/models/untitled.OBJ"), false};
-                game_state.entities.push_back(test_entity);
-                set_vertex_buffer(directx, game_state.entities);
-
-                init_grid(&game_state.grid, game_state.entities);
-                global_is_running = true;
+                
+                //entity creation
+                StaticModel model;
+                model = load_obj("cube.obj");
+                if(model.vertex_attributes.size == 0) { global_is_running = false; }
+                Entity test_entity = {0, model, false};
+                
+                //Entity test_entity = {0, load_obj("terrain.obj"), false};
+                game_state.entities.push_back(test_entity);             
+                
+                bool initialized = false;
                 int picked_entity = -1;
 
                 float FRAME_RATE = 60.0f;
                 float FRAME_FREQUENCY = (1000.0f / FRAME_RATE);
                 while(global_is_running) {
+                    if(!initialized) {
+                        set_vertex_buffer(directx, game_state.entities);
+                        init_grid(&game_state.grid, game_state.entities);
+                        initialized = true;
+                    }
+                    
                     LARGE_INTEGER begin_count;
                     QueryPerformanceCounter(&begin_count);
                     
