@@ -2,12 +2,12 @@
 namespace editor {
 
     //NOTE: Use a hardware accelerated picking method such as rendering entity IDs to a seperate buffer for non-editing use
-    int get_picked_entity_index(Camera camera, vec3 up, ivec2 point_in_client, ivec2 client_dim, float FOV, float aspect_ratio, Array<Entity> entities) {
-        vec2 normalized_client_point = vec2(((float)point_in_client.x / (float)client_dim.x) * 2.0f - 1.0f, //NOTE: [-1, 1]
-                                            ((float)point_in_client.y / (float)client_dim.y) * 2.0f - 1.0f);
+    int get_picked_entity_index(Camera camera, vec3 up, ivec2 point_in_client, ivec2 client_dim, f32 FOV, f32 aspect_ratio, Array<Entity> entities) {
+        vec2 normalized_client_point = vec2(((f32)point_in_client.x / (f32)client_dim.x) * 2.0f - 1.0f, //NOTE: [-1, 1]
+                                            ((f32)point_in_client.y / (f32)client_dim.y) * 2.0f - 1.0f);
 
-        float half_FOV = FOV * 0.5f;
-        vec2 point_on_frustum = vec2((float)tan(half_FOV) * normalized_client_point.x * aspect_ratio, (float)tan(half_FOV) * normalized_client_point.y);
+        f32 half_FOV = FOV * 0.5f;
+        vec2 point_on_frustum = vec2((f32)tan(half_FOV) * normalized_client_point.x * aspect_ratio, (f32)tan(half_FOV) * normalized_client_point.y);
 
         vec3 ro = camera.position;
         vec3 rd = vec3(point_on_frustum.x, point_on_frustum.y, 1.0f);
@@ -21,7 +21,7 @@ namespace editor {
         
         rd = normalize(rd * orientation_transpose);
 
-        float epsilon = 0.00001f;
+        f32 epsilon = 0.00001f;
         int picked_entity_index = -1;
         vec3 intersection;
 
@@ -33,7 +33,7 @@ namespace editor {
                                            entities[entity_index].model.vertex_attributes[vertex_attribute_index + 2].position,
                                            intersection)) {
                     vec3 ro_to_intersection = intersection - ro;
-                    float t = ro_to_intersection.x / rd.x;
+                    f32 t = ro_to_intersection.x / rd.x;
                     if(t > 0.0f) {
                         picked_entity_index = entity_index;
                         break;

@@ -1,23 +1,25 @@
 
-struct Material {
-    float exponent;
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
-    float dissolve;
-    int illum_model;
-};
-
 struct VertexAttribute {
     vec3 position;
     vec3 normal;
     vec2 texcoord;
-    Material material;
-    unsigned int entity_ID;
+    u32 entity_ID;
+};
+
+struct Material {
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    f32 exponent;
+    f32 dissolve;
+    u32 illum_model;
 };
 
 struct StaticModel {
     Array<VertexAttribute> vertex_attributes;
+    Array<Material> materials;
+    Array<int> material_indices; //vertex_attribute indices with new materials
+    Array<int> material_sizes; //how many vertices use this material
 };
 
 struct Entity {
@@ -35,40 +37,40 @@ struct Camera {
     vec3 direction;
     vec3 up;
 
-    void rotate(vec3 *vector, float angle, int axis_of_rotation) {
+    void rotate(vec3 *vector, f32 angle, int axis_of_rotation) {
         vec3 vec = *vector;
         switch(axis_of_rotation) {
             case X_AXIS: {
-                vector->y = vec.y * (float)cos(angle) + vec.z * -1*(float)sin(angle);
-                vector->z = vec.y * (float)sin(angle) + vec.z * (float)cos(angle);
+                vector->y = vec.y * (f32)cos(angle) + vec.z * -1*(f32)sin(angle);
+                vector->z = vec.y * (f32)sin(angle) + vec.z * (f32)cos(angle);
             } break;
         
             case Y_AXIS: {
-                vector->x = vec.x * (float)cos(angle) + vec.z * (float)sin(angle);
-                vector->z = vec.x * -1*(float)sin(angle) + vec.z * (float)cos(angle);
+                vector->x = vec.x * (f32)cos(angle) + vec.z * (f32)sin(angle);
+                vector->z = vec.x * -1*(f32)sin(angle) + vec.z * (f32)cos(angle);
             } break;
         
             case Z_AXIS: {
-                vector->x = vec.x * (float)cos(angle) + vec.y * -1*(float)sin(angle);
-                vector->y = vec.x * (float)sin(angle) + vec.y * (float)cos(angle);      
+                vector->x = vec.x * (f32)cos(angle) + vec.y * -1*(f32)sin(angle);
+                vector->y = vec.x * (f32)sin(angle) + vec.y * (f32)cos(angle);      
             } break;
         }
     }
 
     static void 
-    rotate(vec3 *vector, float angle, vec3 *point, vec3 *line) { //rotates vector about "line" going through "point"
+    rotate(vec3 *vector, f32 angle, vec3 *point, vec3 *line) { //rotates vector about "line" going through "point"
         vec3 vec = *vector;
         vector->x = (point->x*(line->y*line->y + line->z*line->z) - line->x*(point->y*line->y + point->z*line->z - line->x*vec.x - line->y*vec.y - line->z*vec.z)) *
-            (1.0f - (float)cos(angle)) + vec.x*(float)cos(angle) + ((-point->z)*line->y + point->y*line->z - line->z*vec.y + line->y*vec.z) * (float)sin(angle);
+            (1.0f - (f32)cos(angle)) + vec.x*(f32)cos(angle) + ((-point->z)*line->y + point->y*line->z - line->z*vec.y + line->y*vec.z) * (f32)sin(angle);
     
         vector->y = (point->y*(line->x*line->x + line->z*line->z) - line->y*(point->x*line->x + point->z*line->z - line->x*vec.x - line->y*vec.y - line->z*vec.z)) *
-            (1.0f - (float)cos(angle)) + vec.y*(float)cos(angle) + (point->z*line->x - point->x*line->z + line->z*vec.x - line->x*vec.z) * (float)sin(angle);
+            (1.0f - (f32)cos(angle)) + vec.y*(f32)cos(angle) + (point->z*line->x - point->x*line->z + line->z*vec.x - line->x*vec.z) * (f32)sin(angle);
     
         vector->z = (point->z*(line->x*line->x + line->y*line->y) - line->z*(point->x*line->x + point->y*line->y - line->x*vec.x - line->y*vec.y - line->z*vec.z)) *
-            (1.0f - (float)cos(angle)) + vec.z*(float)cos(angle) + ((-point->y)*line->x + point->x*line->y - line->y*vec.x + line->x*vec.y) * (float)sin(angle);
+            (1.0f - (f32)cos(angle)) + vec.z*(f32)cos(angle) + ((-point->y)*line->x + point->x*line->y - line->y*vec.x + line->x*vec.y) * (f32)sin(angle);
     }
     
-    void rotate(float angle, int axis_of_rotation) {
+    void rotate(f32 angle, int axis_of_rotation) {
         vec3 right = normalize(cross(up, direction));
         
         if((axis_of_rotation == X_AXIS) || (axis_of_rotation == Y_AXIS) || (axis_of_rotation == Z_AXIS)) {
@@ -93,9 +95,19 @@ struct ShaderConstants {
     mat44 view_matrix;
     mat44 projection_matrix;
     bool wire_frame_on;
-    int padding0;
-    int padding1;
-    int padding2;
+    u32 padding0;
+    u32 padding1;
+    u32 padding2;
+};
+
+struct MaterialConstants {
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    f32 exponent;
+    f32 dissolve;
+    u32 illum_model;
+    u32 padding0;
 };
 
 struct D3D_RESOURCE {
@@ -182,9 +194,21 @@ bool draw_frame(D3D_RESOURCE *directx, Array<Entity> &entities) {
                                            directx->camera.up);
     constants.projection_matrix = perspective(45.0f, 16.0f/9.0f, 0.1f, 1000.0f);
 
+    D3D11_BUFFER_DESC material_buffer_desc = {};
+    material_buffer_desc.ByteWidth = sizeof(MaterialConstants);
+    material_buffer_desc.Usage = D3D11_USAGE_DYNAMIC;
+    material_buffer_desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    material_buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    material_buffer_desc.MiscFlags = 0;
+    material_buffer_desc.StructureByteStride = 0;
+
+    MaterialConstants material_constants = {};
+
     ID3D11Buffer *constant_buffer;
+    ID3D11Buffer *material_buffer;
     int vertex_draw_offset = 0;
     for(int i = 0; i < entities.size; i++) {
+        //vertex constant buffer
         constants.world_matrix = make_scaling_matrix(1.0f, 1.0f, 1.0f, 1.0f); // NOTE(Alex): not currently used
         constants.wire_frame_on = entities[i].selected;
         
@@ -199,7 +223,29 @@ bool draw_frame(D3D_RESOURCE *directx, Array<Entity> &entities) {
             return false;
         }
         directx->immediate_context->VSSetConstantBuffers(0, 1, &constant_buffer);
-        directx->immediate_context->Draw(entities[i].model.vertex_attributes.size, vertex_draw_offset);
+
+        //material constant buffer
+        for(int mat_index = 0; mat_index < entities[i].model.materials.size; mat_index++) {
+            material_constants.ambient = vec4(entities[i].model.materials[mat_index].ambient, 1.0f);
+            material_constants.diffuse = vec4(entities[i].model.materials[mat_index].diffuse, 1.0f);
+            material_constants.specular = vec4(entities[i].model.materials[mat_index].specular, 1.0f);
+            material_constants.exponent = entities[i].model.materials[mat_index].exponent;
+            material_constants.dissolve = entities[i].model.materials[mat_index].dissolve;
+            material_constants.illum_model = entities[i].model.materials[mat_index].illum_model;
+            D3D11_SUBRESOURCE_DATA material_buffer_data = {};
+            material_buffer_data.pSysMem = &material_constants;
+            material_buffer_data.SysMemPitch = 0;
+            material_buffer_data.SysMemSlicePitch = 0;
+
+            HRESULT create_material_buffer_hr = directx->device->CreateBuffer(&material_buffer_desc, &material_buffer_data, &material_buffer);
+            if(FAILED(create_material_buffer_hr)) {
+                LOG_ERROR("ERROR", "Cannot create material buffer");
+                return false;
+            }
+            directx->immediate_context->PSSetConstantBuffers(1, 1, &material_buffer);
+            directx->immediate_context->Draw(entities[i].model.material_sizes[mat_index], vertex_draw_offset + entities[i].model.material_indices[mat_index]);
+            //directx->immediate_context->Draw(entities[i].model.vertex_attributes.size, vertex_draw_offset);
+        }
         vertex_draw_offset += entities[i].model.vertex_attributes.size;
     }
     

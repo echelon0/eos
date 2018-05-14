@@ -5,7 +5,7 @@ struct Cell {
 };
 
 struct Grid {
-    float cell_radius;
+    f32 cell_radius;
     Array<Cell> cells;
 };
 
@@ -19,7 +19,7 @@ int get_cell_index(Grid *grid, vec2 cell_center) {
     return -1;
 }
 
-vec2 find_appropriate_cell(float cell_radius, vec2 position) { //expects a position on the xz-plane
+vec2 find_appropriate_cell(f32 cell_radius, vec2 position) { //expects a position on the xz-plane
     vec2 result;
     if(position.x < 0)
         result.x = ceil(position.x / cell_radius) * (cell_radius*2);
@@ -54,8 +54,8 @@ void init_grid(Grid *grid, Array<Entity> &entities) {
             vec2 min_cell_center = find_appropriate_cell(grid->cell_radius, vec2(min.x, min.y));
             vec2 max_cell_center = find_appropriate_cell(grid->cell_radius, vec2(max.x, max.y));
             
-            for(float x = min_cell_center.x; x <= max_cell_center.x; x += grid->cell_radius*2) {
-                for(float z = min_cell_center.y; z <= max_cell_center.y; z += grid->cell_radius*2) {
+            for(f32 x = min_cell_center.x; x <= max_cell_center.x; x += grid->cell_radius*2) {
+                for(f32 z = min_cell_center.y; z <= max_cell_center.y; z += grid->cell_radius*2) {
                     int possible_cell_index = get_cell_index(grid, vec2(x, z));
                         if(possible_cell_index == -1) {
                             Cell new_cell;

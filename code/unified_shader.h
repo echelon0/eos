@@ -4,9 +4,19 @@ cbuffer ShaderConstants : register(b0) {
     matrix view_matrix;
     matrix projection_matrix;
     bool wire_frame_on;
-    int padding0;
-    int padding1;
-    int padding2;
+    uint padding0;
+    uint padding1;
+    uint padding2;
+};
+
+cbuffer MaterialConstants : register(b1) {
+    float4 ambient;
+    float4 diffuse;
+    float4 specular;
+    float exponent;
+    float dissolve;
+    uint illum_model;
+    uint padding3;
 };
 
 struct VS_IN {
@@ -77,13 +87,29 @@ void gs_main(triangle VS_OUT input[3], inout TriangleStream<GS_OUT> triangle_str
 }
 
 float4 ps_main(GS_OUT input) : SV_TARGET {
-    float3 light_direction = float3(0.5f, -0.5f, 0.0f);
-    float light_intensity = abs(dot(light_direction, normalize(input.normal)));
+    float3 light_direction = float3(0.5f, -0.5f, -0.2f);
+    normalize(light_direction);
+    float4 light_color = float4(1.0f, 0.95f, 0.85f, 1.0f);
+    float3 L = -light_direction;
+    float light_intensity = max(0.0f, dot(normalize(input.normal), L));    
+    float4 diffuse_color = light_color * light_intensity;
+    
+    // Phong lighting
+    float3 R = normalize(reflect(-L, input.normal));
+    float RdotV = max(0, dot(R, float3(0.0f, 0.0f, 0.0f)));
+    float4 specular_color = light_color * pow(RdotV, exponent);
+
+    saturate(diffuse_color);
+    saturate(specular_color);
+    diffuse_color = diffuse * diffuse_color;
+    specular_color = specular * specular_color;    
+    float4 color = ambient + diffuse_color + specular_color;
+    
     { //toon shading
         //uint intensity_levels = 5;
         //light_intensity = floor(light_intensity * intensity_levels) / intensity_levels;
     }
-    float4 color = float4(light_intensity, light_intensity, light_intensity, 1.0f);
+    //float4 color = float4(light_intensity, light_intensity, light_intensity, 1.0f);
 
     // solid wire frame
     if(input.wire_frame_on) {
@@ -102,6 +128,5 @@ float4 ps_main(GS_OUT input) : SV_TARGET {
             }
         }
     }
-    
     return color;
 }

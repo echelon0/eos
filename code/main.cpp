@@ -2,12 +2,14 @@
 /*
   TODO:
   Make sure MSAA can be configured properly on any machine (quality/sample count)
-  Materials
+  Send light information to GPU
   Textures
+  Gamma correction
   Entity transform/rotation
 */
 
-
+#define u32 unsigned int
+#define f32 float
 #define LOG_ERROR(Title, Message) MessageBoxA(0, Message, Title, MB_OK|MB_ICONERROR)
 
 #include <windows.h>
@@ -200,8 +202,8 @@ LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPara
 void process_input() {
     if(global_input.SET_DRAG_VECTOR) {
         global_input.PER_FRAME_DRAG_VECTOR = global_input.CURRENT_POS - global_input.client_center;
-        global_input.PER_FRAME_DRAG_VECTOR_PERCENT = vec2((float)global_input.PER_FRAME_DRAG_VECTOR.x / (float)GetSystemMetrics(SM_CXSCREEN),
-                                                          (float)global_input.PER_FRAME_DRAG_VECTOR.y / (float)GetSystemMetrics(SM_CYSCREEN));
+        global_input.PER_FRAME_DRAG_VECTOR_PERCENT = vec2((f32)global_input.PER_FRAME_DRAG_VECTOR.x / (f32)GetSystemMetrics(SM_CXSCREEN),
+                                                          (f32)global_input.PER_FRAME_DRAG_VECTOR.y / (f32)GetSystemMetrics(SM_CYSCREEN));
     }
     if(global_input.LEFT_MOUSE_BUTTON) {
         global_input.LEFT_DRAG_VECTOR = global_input.CURRENT_POS - global_input.LEFT_DOWN_POS;
@@ -269,16 +271,16 @@ void editor_camera_control(D3D_RESOURCE *directx) {
     }        
 }
 
-float get_elapsed_time(LARGE_INTEGER begin_count) {
+f32 get_elapsed_time(LARGE_INTEGER begin_count) {
     timeBeginPeriod(1);
     LARGE_INTEGER frequency;
     if(QueryPerformanceFrequency(&frequency)) {
         LARGE_INTEGER count;
         QueryPerformanceCounter(&count);
         timeEndPeriod(1);
-        return ((float)(count.QuadPart - begin_count.QuadPart) / (float)frequency.QuadPart) * 1000.0f; // time in miliseconds
+        return ((f32)(count.QuadPart - begin_count.QuadPart) / (f32)frequency.QuadPart) * 1000.0f; // time in miliseconds
     } else {
-        return (float)GetTickCount();
+        return (f32)GetTickCount();
     }
 }
 
@@ -289,7 +291,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     ivec2 window_pos;    
     window_pos.y = (screen_height - window_dim.y) / 2;
     window_pos.x = (screen_width - window_dim.x) / 2;
-    float frame_rate  = 60.0f;
+    f32 frame_rate  = 60.0f;
     
     WNDCLASS window_class = {};
     window_class.style = CS_OWNDC|CS_HREDRAW|CS_VREDRAW;
@@ -328,7 +330,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 
                 //entity creation
                 StaticModel model;
-                model = load_obj("terrain.obj");
+                model = load_obj("sample_terrain.obj");
                 if(model.vertex_attributes.size == 0) { global_is_running = false; }
                 Entity test_entity = {0, model, false};
                 game_state.entities.push_back(test_entity);             
@@ -336,8 +338,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 bool initialized = false;
                 int picked_entity = -1;
 
-                float FRAME_RATE = 60.0f;
-                float FRAME_FREQUENCY = (1000.0f / FRAME_RATE);
+                f32 FRAME_RATE = 60.0f;
+                f32 FRAME_FREQUENCY = (1000.0f / FRAME_RATE);
                 while(global_is_running) {
                     if(!initialized) {
                         set_vertex_buffer(directx, game_state.entities);
@@ -386,7 +388,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     
                     reset_input();
 
-                    float frame_duration = get_elapsed_time(begin_count);
+                    f32 frame_duration = get_elapsed_time(begin_count);
                     if(frame_duration < FRAME_FREQUENCY) {
                         Sleep((DWORD)(FRAME_FREQUENCY - frame_duration));
                     }

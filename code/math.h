@@ -116,7 +116,13 @@ struct vec4 {
         this->z = z;
         this->w = w;
     }
-    
+
+    vec4(vec3 vec, float w) {
+        this->x = vec.x;
+        this->y = vec.y;
+        this->z = vec.z;
+        this->w = w;    
+    }
     bool operator == (vec4 rhs) {
         return (this->x == rhs.x) && (this->y == rhs.y) && (this->z == rhs.z) && (this->w == rhs.w);
     }

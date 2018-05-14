@@ -1,0 +1,2 @@
+
+For sample_terrain.obj used plane radius 15.0 and subdivided 100 times = 0.15 radius quads

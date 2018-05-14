@@ -61,18 +61,16 @@ StaticModel load_obj(char *file_name) {
     char line_id[2048];
     struct MaterialWithID {
         char name[1024];
+        bool recorded;
         Material mat;
     };
     Array<MaterialWithID> materials;
     while(fscanf(mtl_file_handle, "%s", line_id) != EOF) {
         if(strcmp(line_id, "newmtl") == 0) {
-            MaterialWithID mat;
+            MaterialWithID mat = {};
             fscanf(mtl_file_handle, "%s", mat.name);
             materials.push_back(mat);
-            
-        } else if(strcmp(line_id, "Ns") == 0) { //specular exponent
-            fscanf(mtl_file_handle, "%f", &materials[materials.size - 1].mat.exponent);
-            
+                        
         } else if(strcmp(line_id, "Ka") == 0) { //ambient
             fscanf(mtl_file_handle, "%f%f%f\n",
                    &materials[materials.size - 1].mat.ambient.x,
@@ -90,7 +88,10 @@ StaticModel load_obj(char *file_name) {
                    &materials[materials.size - 1].mat.specular.x,
                    &materials[materials.size - 1].mat.specular.y,
                    &materials[materials.size - 1].mat.specular.z);
-            
+
+        } else if(strcmp(line_id, "Ns") == 0) { //specular exponent
+            fscanf(mtl_file_handle, "%f", &materials[materials.size - 1].mat.exponent);
+
         } else if(strcmp(line_id, "d") == 0) { //dissolve
             fscanf(mtl_file_handle, "%f\n", &materials[materials.size - 1].mat.dissolve);
             
@@ -171,18 +172,33 @@ StaticModel load_obj(char *file_name) {
             temp_vertices[1].normal = temp_vertices[0].normal;
             temp_vertices[2].normal = temp_vertices[0].normal;
             for(int i = 0; i < 3; i++) {
-                temp_vertices[i].material.exponent = materials[current_mat_index].mat.exponent;
-                temp_vertices[i].material.ambient = materials[current_mat_index].mat.ambient;
-                temp_vertices[i].material.diffuse = materials[current_mat_index].mat.diffuse;
-                temp_vertices[i].material.specular = materials[current_mat_index].mat.specular;
-                temp_vertices[i].material.dissolve = materials[current_mat_index].mat.dissolve;
-                temp_vertices[i].material.illum_model = materials[current_mat_index].mat.illum_model;
-                
+                if(!materials[current_mat_index].recorded) {
+                    Material final_material = { materials[current_mat_index].mat.ambient,
+                                                materials[current_mat_index].mat.diffuse,
+                                                materials[current_mat_index].mat.specular,
+                                                materials[current_mat_index].mat.exponent,
+                                                materials[current_mat_index].mat.dissolve,
+                                                materials[current_mat_index].mat.illum_model };
+                    
+                    loaded_model.materials.push_back(final_material);
+                    loaded_model.material_indices.push_back(loaded_model.vertex_attributes.size);
+                    if(loaded_model.materials.size >= 2) {
+                        int prev_mat_size = loaded_model.material_indices[loaded_model.material_indices.size - 1] - loaded_model.material_indices[loaded_model.material_indices.size - 2];
+                        loaded_model.material_sizes.push_back(prev_mat_size);
+                    }
+                    materials[current_mat_index].recorded = true;
+                }
                 loaded_model.vertex_attributes.push_back(temp_vertices[i]);
             }
         }
     }
 
+    if(loaded_model.materials.size >= 2) {
+        int prev_mat_size = loaded_model.vertex_attributes.size - loaded_model.material_indices[loaded_model.material_indices.size - 2];
+        loaded_model.material_sizes.push_back(prev_mat_size);
+    } else if(loaded_model.materials.size == 1) {
+        loaded_model.material_sizes.push_back(loaded_model.vertex_attributes.size);
+    }
     delete file_path;
     delete positions.data;
     delete normals.data;
