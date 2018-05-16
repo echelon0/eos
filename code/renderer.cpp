@@ -22,6 +22,21 @@ struct StaticModel {
     Array<int> material_sizes; //how many vertices use this material
 };
 
+#define MAX_LIGHTS 64
+#define DIRECTIONAL_LIGHT 0
+#define POINT_LIGHT 1
+#define SPOTLIGHT 2
+
+struct Light {
+    u32 entity_ID;
+    vec3 position;
+    vec3 direction;
+    vec3 color;
+    vec3 cone_angle;
+    u32 light_type;
+    bool enabled;
+};
+
 struct Entity {
     unsigned int ID;
     StaticModel model;
@@ -107,7 +122,21 @@ struct MaterialConstants {
     f32 exponent;
     f32 dissolve;
     u32 illum_model;
-    u32 padding0;
+    u32 iTime;
+};
+
+struct ShaderLight {
+    vec4 position;
+    vec4 direction;
+    vec4 color;
+    vec4 cone_angle;
+    u32 light_type;
+    bool enabled;
+};
+
+struct LightConstants {
+    ShaderLight shader_lights[MAX_LIGHTS];
+    vec4 eye_position;
 };
 
 struct D3D_RESOURCE {
@@ -165,7 +194,7 @@ bool set_vertex_buffer(D3D_RESOURCE *directx, Array<Entity> &entities) {
     return true;
 }
 
-bool draw_frame(D3D_RESOURCE *directx, Array<Entity> &entities) {
+bool draw_frame(D3D_RESOURCE *directx, Array<Entity> &entities, Light lights[], vec3 eye_position) {
 
     {
         FLOAT background_color[] = {0.788f, 0.867f, 1.0f, 1.0f};
@@ -193,7 +222,7 @@ bool draw_frame(D3D_RESOURCE *directx, Array<Entity> &entities) {
                                            directx->camera.direction,
                                            directx->camera.up);
     constants.projection_matrix = perspective(45.0f, 16.0f/9.0f, 0.1f, 1000.0f);
-
+    
     D3D11_BUFFER_DESC material_buffer_desc = {};
     material_buffer_desc.ByteWidth = sizeof(MaterialConstants);
     material_buffer_desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -203,10 +232,49 @@ bool draw_frame(D3D_RESOURCE *directx, Array<Entity> &entities) {
     material_buffer_desc.StructureByteStride = 0;
 
     MaterialConstants material_constants = {};
+    material_constants.iTime = global_iTime;
 
+    D3D11_BUFFER_DESC light_buffer_desc = {};
+    light_buffer_desc.ByteWidth = sizeof(LightConstants);
+    light_buffer_desc.Usage = D3D11_USAGE_DYNAMIC;
+    light_buffer_desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    light_buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    light_buffer_desc.MiscFlags = 0;
+    light_buffer_desc.StructureByteStride = 0;
+
+    LightConstants light_constants = {};
+
+    //light constant buffer
+    light_constants.eye_position = vec4(eye_position, 1.0f);
+    for(int i = 0; i < MAX_LIGHTS; i++)  {
+        ShaderLight shader_light = {};
+        shader_light.position = vec4(lights[i].position, 1.0f);
+        shader_light.direction = vec4(lights[i].direction, 1.0f);
+        shader_light.color = vec4(lights[i].color, 1.0f);
+        shader_light.cone_angle = vec4(lights[i].cone_angle, 1.0f);
+        shader_light.light_type = lights[i].light_type;
+        shader_light.enabled = lights[i].enabled;
+
+        light_constants.shader_lights[i] = shader_light;
+    }
+    
     ID3D11Buffer *constant_buffer;
     ID3D11Buffer *material_buffer;
-    int vertex_draw_offset = 0;
+    ID3D11Buffer *light_buffer;
+
+    D3D11_SUBRESOURCE_DATA light_buffer_data = {};
+    light_buffer_data.pSysMem = &light_constants;
+    light_buffer_data.SysMemPitch = 0;
+    light_buffer_data.SysMemSlicePitch = 0;
+
+    HRESULT create_light_buffer_hr = directx->device->CreateBuffer(&light_buffer_desc, &light_buffer_data, &light_buffer);
+    if(FAILED(create_light_buffer_hr)) {
+        LOG_ERROR("ERROR", "Cannot create light buffer");
+        return false;
+    }    
+    directx->immediate_context->PSSetConstantBuffers(2, 1, &light_buffer);
+    
+    int vertex_draw_offset = 0;    
     for(int i = 0; i < entities.size; i++) {
         //vertex constant buffer
         constants.world_matrix = make_scaling_matrix(1.0f, 1.0f, 1.0f, 1.0f); // NOTE(Alex): not currently used
@@ -244,7 +312,6 @@ bool draw_frame(D3D_RESOURCE *directx, Array<Entity> &entities) {
             }
             directx->immediate_context->PSSetConstantBuffers(1, 1, &material_buffer);
             directx->immediate_context->Draw(entities[i].model.material_sizes[mat_index], vertex_draw_offset + entities[i].model.material_indices[mat_index]);
-            //directx->immediate_context->Draw(entities[i].model.vertex_attributes.size, vertex_draw_offset);
         }
         vertex_draw_offset += entities[i].model.vertex_attributes.size;
     }

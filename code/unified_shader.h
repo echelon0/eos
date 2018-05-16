@@ -16,7 +16,25 @@ cbuffer MaterialConstants : register(b1) {
     float exponent;
     float dissolve;
     uint illum_model;
-    uint padding3;
+    uint iTime;
+};
+
+struct Light {
+    float4 position;
+    float4 direction;
+    float4 color;
+    float4 cone_angle;
+    uint light_type;
+    bool enabled;
+};
+
+#define MAX_LIGHTS 64
+#define DIRECTIONAL_LIGHT 0
+#define POINT_LIGHT 1
+#define SPOTLIGHT 2
+cbuffer LightConstants : register(b2) {
+    Light lights[MAX_LIGHTS];
+    float4 eye_position;
 };
 
 struct VS_IN {
@@ -87,29 +105,19 @@ void gs_main(triangle VS_OUT input[3], inout TriangleStream<GS_OUT> triangle_str
 }
 
 float4 ps_main(GS_OUT input) : SV_TARGET {
-    float3 light_direction = float3(0.5f, -0.5f, -0.2f);
-    normalize(light_direction);
-    float4 light_color = float4(1.0f, 0.95f, 0.85f, 1.0f);
-    float3 L = -light_direction;
-    float light_intensity = max(0.0f, dot(normalize(input.normal), L));    
-    float4 diffuse_color = light_color * light_intensity;
-    
-    // Phong lighting
-    float3 R = normalize(reflect(-L, input.normal));
-    float RdotV = max(0, dot(R, float3(0.0f, 0.0f, 0.0f)));
-    float4 specular_color = light_color * pow(RdotV, exponent);
-
-    saturate(diffuse_color);
-    saturate(specular_color);
-    diffuse_color = diffuse * diffuse_color;
-    specular_color = specular * specular_color;    
-    float4 color = ambient + diffuse_color + specular_color;
-    
-    { //toon shading
-        //uint intensity_levels = 5;
-        //light_intensity = floor(light_intensity * intensity_levels) / intensity_levels;
+    for(int i = 0; i < MAX_LIGHTS; i++) {
+        switch(lights[i].light_type) {
+            case DIRECTIONAL_LIGHT: {
+            } break;
+                
+            case POINT_LIGHT: {
+            } break;
+                
+            case SPOTLIGHT: {
+            } break;
+        }
     }
-    //float4 color = float4(light_intensity, light_intensity, light_intensity, 1.0f);
+    float4 color = float4(1.0f, 0.0f, 0.0f, 1.0f);
 
     // solid wire frame
     if(input.wire_frame_on) {

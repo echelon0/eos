@@ -1,6 +1,41 @@
 
 namespace editor {
 
+    bool add_light(Light lights[], int num_lights, Array<Entity> entities, u32 light_type, u32 entity_ID) {
+        //input check
+        if(num_lights == MAX_LIGHTS) {
+            LOG_ERROR("ERROR", "Maximum number of lights exceeded when attempting to create light source.");
+            return false;
+        }
+            
+        if(light_type != DIRECTIONAL_LIGHT && light_type != POINT_LIGHT && light_type != SPOTLIGHT) {
+            LOG_ERROR("ERROR", "Invalid light type when creating light source.");
+            return false;
+        }
+            
+        int index = -1;
+        for(int i = 0; i < entities.size; i++) {
+            if(entities[i].ID == entity_ID) {
+                index = i;
+                break;
+            }
+        }
+        if(index == -1) {
+            LOG_ERROR("ERROR", "Entity does not exist when creating light source.");
+            return false;
+        }
+        
+        Light new_light = {};
+        new_light.light_type = light_type;
+        new_light.position = entities[index].model.vertex_attributes[0].position; //TODO: CHANGE THIS TO ENTITY'S CENTER POSITION
+        new_light.position.y += 8.0f;
+        new_light.enabled = true;
+        
+        lights[num_lights] = new_light;
+        
+        return true;
+    }
+    
     //NOTE: Use a hardware accelerated picking method such as rendering entity IDs to a seperate buffer for non-editing use
     int get_picked_entity_index(Camera camera, vec3 up, ivec2 point_in_client, ivec2 client_dim, f32 FOV, f32 aspect_ratio, Array<Entity> entities) {
         vec2 normalized_client_point = vec2(((f32)point_in_client.x / (f32)client_dim.x) * 2.0f - 1.0f, //NOTE: [-1, 1]

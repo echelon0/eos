@@ -11,6 +11,8 @@ struct Player {
 struct GameState {
     bool initialized;
     Array<Entity> entities;
+    Light lights[MAX_LIGHTS];
+    int num_lights;
     Grid grid;
     f32 camera_target_y;
     vec2 current_cam_rotation;
@@ -24,7 +26,7 @@ void game_update(GameState *game_state, D3D_RESOURCE *directx) {
         game_state->player.run_speed = 0.15f;
         game_state->player.current_speed = game_state->player.walk_speed;
         game_state->player.target_speed = game_state->player.current_speed;
-        
+
         game_state->initialized = true;
     }
 

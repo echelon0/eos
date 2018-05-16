@@ -54,6 +54,7 @@ struct INPUT_STATE {
     bool RIGHT_CLICKED;
 };
 
+static u32 global_iTime = 0;
 static bool global_is_running;
 static INPUT_STATE global_input;
 
@@ -332,8 +333,12 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 StaticModel model;
                 model = load_obj("sample_terrain.obj");
                 if(model.vertex_attributes.size == 0) { global_is_running = false; }
-                Entity test_entity = {0, model, false};
-                game_state.entities.push_back(test_entity);             
+                Entity test_entity = {};
+                test_entity.model = model;
+                game_state.entities.push_back(test_entity);
+
+                //light creation
+                editor::add_light(game_state.lights, game_state.num_lights, game_state.entities, POINT_LIGHT, 0);
                 
                 bool initialized = false;
                 int picked_entity = -1;
@@ -384,7 +389,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     }
 
                     game_update(&game_state, directx);
-                    if(!draw_frame(directx, game_state.entities)) break;
+                    if(!draw_frame(directx, game_state.entities, game_state.lights, directx->camera.position)) break;
                     
                     reset_input();
 
@@ -392,7 +397,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     if(frame_duration < FRAME_FREQUENCY) {
                         Sleep((DWORD)(FRAME_FREQUENCY - frame_duration));
                     }
-
+                    global_iTime++;
+                    
                     // set mouse cursor to center of screen
                     if(!edit_mode) {
                         SetCursorPos(client_center_pt.x, client_center_pt.y);
