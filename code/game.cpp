@@ -23,9 +23,12 @@ struct GameState {
 void game_update(GameState *game_state, D3D_RESOURCE *directx) {
     if(!game_state->initialized) {
         game_state->player.walk_speed = 0.08f;
-        game_state->player.run_speed = 0.15f;
+        game_state->player.run_speed = 15.0f; //0.15f;
         game_state->player.current_speed = game_state->player.walk_speed;
         game_state->player.target_speed = game_state->player.current_speed;
+
+        memset(&game_state->lights, 0, sizeof(game_state->lights));
+        game_state->num_lights = 0;
 
         game_state->initialized = true;
     }

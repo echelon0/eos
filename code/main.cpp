@@ -65,138 +65,142 @@ static INPUT_STATE global_input;
 
 LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
     LRESULT result = 0;
-    switch(Msg) {
-        case WM_CLOSE: {
-            global_is_running = false;
-        } break;
-            
-        case WM_SIZE: {
-            WORD window_width = LOWORD(lParam);
-            WORD window_height = HIWORD(lParam);           
-        } break;
 
-        case WM_KEYDOWN: {
-            switch(wParam) {
-                case VK_ESCAPE: {
-                    global_input.ESC_KEY = true;
-                } break;
-                case 'W': {
-                    global_input.W_KEY = true;
-                } break;
-                case 'A': {
-                    global_input.A_KEY = true;
-                } break;
-                case 'S': {
-                    global_input.S_KEY = true;
-                } break;
-                case 'D': {
-                    global_input.D_KEY = true;
-                } break;
-                case VK_UP: {
-                    global_input.UP_ARROW = true;
-                } break;
-                case VK_DOWN: {
-                    global_input.DOWN_ARROW = true;
-                } break;
-                case VK_LEFT: {
-                    global_input.LEFT_ARROW = true;
-                } break;
-                case VK_RIGHT: {
-                    global_input.RIGHT_ARROW = true;
-                } break;
-                case VK_SPACE: {
-                    global_input.SPACE_BAR = true;
-                } break;
-                case VK_SHIFT: {
-                    global_input.SHIFT_KEY = true;
-                } break;
+    if(GetActiveWindow() != hWnd) {
+        result = DefWindowProc(hWnd, Msg, wParam, lParam);
+    } else {
+        switch(Msg) {
+            case WM_CLOSE: {
+                global_is_running = false;
+            } break;
+            
+            case WM_SIZE: {
+                WORD window_width = LOWORD(lParam);
+                WORD window_height = HIWORD(lParam);           
+            } break;
+
+            case WM_KEYDOWN: {
+                switch(wParam) {
+                    case VK_ESCAPE: {
+                        global_input.ESC_KEY = true;
+                    } break;
+                    case 'W': {
+                        global_input.W_KEY = true;
+                    } break;
+                    case 'A': {
+                        global_input.A_KEY = true;
+                    } break;
+                    case 'S': {
+                        global_input.S_KEY = true;
+                    } break;
+                    case 'D': {
+                        global_input.D_KEY = true;
+                    } break;
+                    case VK_UP: {
+                        global_input.UP_ARROW = true;
+                    } break;
+                    case VK_DOWN: {
+                        global_input.DOWN_ARROW = true;
+                    } break;
+                    case VK_LEFT: {
+                        global_input.LEFT_ARROW = true;
+                    } break;
+                    case VK_RIGHT: {
+                        global_input.RIGHT_ARROW = true;
+                    } break;
+                    case VK_SPACE: {
+                        global_input.SPACE_BAR = true;
+                    } break;
+                    case VK_SHIFT: {
+                        global_input.SHIFT_KEY = true;
+                    } break;
                     
-                default:
-                    break;
-            }
-        } break;
+                    default:
+                        break;
+                }
+            } break;
 
-        case WM_KEYUP: {
-            switch(wParam) {
-                case VK_ESCAPE: {
-                    global_input.ESC_KEY = false;
-                } break;
-                case 'W': {
-                    global_input.W_KEY = false;
-                } break;
-                case 'A': {
-                    global_input.A_KEY = false;
-                } break;
-                case 'S': {
-                    global_input.S_KEY = false;
-                } break;
-                case 'D': {
-                    global_input.D_KEY = false;
-                } break;
-                case VK_UP: {
-                    global_input.UP_ARROW = false;
-                } break;
-                case VK_DOWN: {
-                    global_input.DOWN_ARROW = false;
-                } break;
-                case VK_LEFT: {
-                    global_input.LEFT_ARROW = false;
-                } break;
-                case VK_RIGHT: {
-                    global_input.RIGHT_ARROW = false;
-                } break;
-                case VK_SPACE: {
-                    global_input.SPACE_BAR = false;
-                } break;
-                case VK_SHIFT: {
-                    global_input.SHIFT_KEY = false;
-                } break;
+            case WM_KEYUP: {
+                switch(wParam) {
+                    case VK_ESCAPE: {
+                        global_input.ESC_KEY = false;
+                    } break;
+                    case 'W': {
+                        global_input.W_KEY = false;
+                    } break;
+                    case 'A': {
+                        global_input.A_KEY = false;
+                    } break;
+                    case 'S': {
+                        global_input.S_KEY = false;
+                    } break;
+                    case 'D': {
+                        global_input.D_KEY = false;
+                    } break;
+                    case VK_UP: {
+                        global_input.UP_ARROW = false;
+                    } break;
+                    case VK_DOWN: {
+                        global_input.DOWN_ARROW = false;
+                    } break;
+                    case VK_LEFT: {
+                        global_input.LEFT_ARROW = false;
+                    } break;
+                    case VK_RIGHT: {
+                        global_input.RIGHT_ARROW = false;
+                    } break;
+                    case VK_SPACE: {
+                        global_input.SPACE_BAR = false;
+                    } break;
+                    case VK_SHIFT: {
+                        global_input.SHIFT_KEY = false;
+                    } break;
                     
-                default:
-                    break;
-            }
-        } break;
+                    default:
+                        break;
+                }
+            } break;
 
-        case WM_MOUSEMOVE: {
-            global_input.PREV_POS = global_input.CURRENT_POS;
-            global_input.CURRENT_POS.x = GET_X_LPARAM(lParam);
-            global_input.CURRENT_POS.y = GET_Y_LPARAM(lParam);
-            global_input.SET_DRAG_VECTOR = true;
-        } break;
+            case WM_MOUSEMOVE: {
+                global_input.PREV_POS = global_input.CURRENT_POS;
+                global_input.CURRENT_POS.x = GET_X_LPARAM(lParam);
+                global_input.CURRENT_POS.y = GET_Y_LPARAM(lParam);
+                global_input.SET_DRAG_VECTOR = true;
+            } break;
             
-        case WM_LBUTTONDOWN: {
-            if(!global_input.LEFT_MOUSE_BUTTON) {
-                global_input.LEFT_DOWN_POS.x = GET_X_LPARAM(lParam);
-                global_input.LEFT_DOWN_POS.y = GET_Y_LPARAM(lParam);
-            }
-            global_input.LEFT_MOUSE_BUTTON = true;
-        } break;
+            case WM_LBUTTONDOWN: {
+                if(!global_input.LEFT_MOUSE_BUTTON) {
+                    global_input.LEFT_DOWN_POS.x = GET_X_LPARAM(lParam);
+                    global_input.LEFT_DOWN_POS.y = GET_Y_LPARAM(lParam);
+                }
+                global_input.LEFT_MOUSE_BUTTON = true;
+            } break;
             
-        case WM_LBUTTONUP: {
-            global_input.CURRENT_POS.x = GET_X_LPARAM(lParam);
-            global_input.CURRENT_POS.y = GET_Y_LPARAM(lParam);
-            global_input.LEFT_MOUSE_BUTTON_RELEASED = true;
-        } break;
+            case WM_LBUTTONUP: {
+                global_input.CURRENT_POS.x = GET_X_LPARAM(lParam);
+                global_input.CURRENT_POS.y = GET_Y_LPARAM(lParam);
+                global_input.LEFT_MOUSE_BUTTON_RELEASED = true;
+            } break;
 
-        case WM_RBUTTONDOWN: {
-            if(!global_input.RIGHT_MOUSE_BUTTON) {
-                global_input.RIGHT_DOWN_POS.x = GET_X_LPARAM(lParam);
-                global_input.RIGHT_DOWN_POS.y = GET_Y_LPARAM(lParam);
-            }
-            global_input.RIGHT_MOUSE_BUTTON = true;
-        } break;
+            case WM_RBUTTONDOWN: {
+                if(!global_input.RIGHT_MOUSE_BUTTON) {
+                    global_input.RIGHT_DOWN_POS.x = GET_X_LPARAM(lParam);
+                    global_input.RIGHT_DOWN_POS.y = GET_Y_LPARAM(lParam);
+                }
+                global_input.RIGHT_MOUSE_BUTTON = true;
+            } break;
             
-        case WM_RBUTTONUP: {
-            global_input.CURRENT_POS.x = GET_X_LPARAM(lParam);
-            global_input.CURRENT_POS.y = GET_Y_LPARAM(lParam);
-            global_input.RIGHT_MOUSE_BUTTON_RELEASED = true;
-        } break;
+            case WM_RBUTTONUP: {
+                global_input.CURRENT_POS.x = GET_X_LPARAM(lParam);
+                global_input.CURRENT_POS.y = GET_Y_LPARAM(lParam);
+                global_input.RIGHT_MOUSE_BUTTON_RELEASED = true;
+            } break;
      
-        default: {
-            result = DefWindowProc(hWnd, Msg, wParam, lParam);
-        } break;
-    }
-    
+            default: {
+                result = DefWindowProc(hWnd, Msg, wParam, lParam);
+            } break;
+        }
+    }    
     return result;
 }
 
@@ -331,20 +335,21 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 
                 //entity creation
                 StaticModel model;
-                model = load_obj("sample_terrain.obj");
+                model = load_obj("liquid.obj");
                 if(model.vertex_attributes.size == 0) { global_is_running = false; }
                 Entity test_entity = {};
                 test_entity.model = model;
                 game_state.entities.push_back(test_entity);
-
-                //light creation
-                editor::add_light(game_state.lights, game_state.num_lights, game_state.entities, POINT_LIGHT, 0);
                 
                 bool initialized = false;
                 int picked_entity = -1;
 
                 f32 FRAME_RATE = 60.0f;
                 f32 FRAME_FREQUENCY = (1000.0f / FRAME_RATE);
+
+
+                bool added_light = false;
+                
                 while(global_is_running) {
                     if(!initialized) {
                         set_vertex_buffer(directx, game_state.entities);
@@ -400,11 +405,17 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     global_iTime++;
                     
                     // set mouse cursor to center of screen
-                    if(!edit_mode) {
+                    if((GetActiveWindow() == window)) {
                         SetCursorPos(client_center_pt.x, client_center_pt.y);
                     }
                     
                     // REMOVE:
+                    //light creation
+                    if(!added_light) {
+                        editor::add_light(game_state.lights, game_state.num_lights, game_state.entities, POINT_LIGHT, 0);
+                        added_light = true;
+                    }
+                    
                     frame_duration = get_elapsed_time(begin_count);
                     CString s;
                     s.Format(_T("%f"), frame_duration);

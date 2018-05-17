@@ -1,7 +1,7 @@
 
 namespace editor {
 
-    bool add_light(Light lights[], int num_lights, Array<Entity> entities, u32 light_type, u32 entity_ID) {
+    bool add_light(Light lights[], int &num_lights, Array<Entity> entities, u32 light_type, u32 entity_ID) {
         //input check
         if(num_lights == MAX_LIGHTS) {
             LOG_ERROR("ERROR", "Maximum number of lights exceeded when attempting to create light source.");
@@ -28,10 +28,13 @@ namespace editor {
         Light new_light = {};
         new_light.light_type = light_type;
         new_light.position = entities[index].model.vertex_attributes[0].position; //TODO: CHANGE THIS TO ENTITY'S CENTER POSITION
-        new_light.position.y += 8.0f;
+        new_light.color = vec3(201.0f / 255.0f, 226.0f / 255.0f, 1.0f);
+        new_light.position.y += 5.0f;
+        new_light.position.x += -100.0f;
+        new_light.position.z += 40.0f;
         new_light.enabled = true;
         
-        lights[num_lights] = new_light;
+        lights[num_lights++] = new_light;
         
         return true;
     }

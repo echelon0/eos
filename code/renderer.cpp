@@ -132,6 +132,8 @@ struct ShaderLight {
     vec4 cone_angle;
     u32 light_type;
     bool enabled;
+    u32 padding3;
+    u32 padding4;
 };
 
 struct LightConstants {

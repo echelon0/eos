@@ -26,6 +26,8 @@ struct Light {
     float4 cone_angle;
     uint light_type;
     bool enabled;
+    uint padding3;
+    uint padding4;
 };
 
 #define MAX_LIGHTS 64
@@ -45,6 +47,7 @@ struct VS_IN {
 
 struct VS_OUT {
     float4 position : SV_POSITION;
+    float4 world_space_pos : POSITION;
     float3 normal : NORMAL;
     float3 texcoord : TEXCOORD;
     bool wire_frame_on : FOG;
@@ -52,6 +55,7 @@ struct VS_OUT {
 
 struct GS_OUT {
     float4 position : SV_POSITION;
+    float4 world_space_pos : POSITION;
     float3 normal : NORMAL;
     float3 texcoord : TEXCOORD;
     bool wire_frame_on : FOG;
@@ -60,10 +64,12 @@ struct GS_OUT {
 
 VS_OUT vs_main(VS_IN input) {
     VS_OUT output;
-    output.position = float4(input.position.x, input.position.y, input.position.z, 1.0f);
+    output.position = float4(input.position.xyz, 1.0f);
     output.position = mul(output.position, view_matrix);
     output.position = mul(output.position, transpose(projection_matrix));
+    output.world_space_pos = float4(input.position.xyz, 1.0f); //////
     output.normal = float3(input.normal.x, input.normal.y, input.normal.z);
+    output.normal = normalize(output.normal);
     output.texcoord = input.texcoord;
     output.wire_frame_on = wire_frame_on;
     
@@ -95,7 +101,8 @@ void gs_main(triangle VS_OUT input[3], inout TriangleStream<GS_OUT> triangle_str
     }
     
     for(int i = 2; i >= 0; i--) {
-        output.position = input[i].position;    
+        output.position = input[i].position;
+        output.world_space_pos = input[i].world_space_pos;
         output.normal = input[i].normal;
         output.texcoord = input[i].texcoord;
         output.wire_frame_on = input[i].wire_frame_on;
@@ -105,19 +112,39 @@ void gs_main(triangle VS_OUT input[3], inout TriangleStream<GS_OUT> triangle_str
 }
 
 float4 ps_main(GS_OUT input) : SV_TARGET {
+    float4 color;
     for(int i = 0; i < MAX_LIGHTS; i++) {
-        switch(lights[i].light_type) {
-            case DIRECTIONAL_LIGHT: {
-            } break;
+        if(lights[i].enabled) {
+            float3 light_vector = (lights[i].position - input.world_space_pos).xyz;
+            float dist_to_light = length(light_vector);
+            normalize(light_vector);
+            float brightness = 150.0f;
+            float intensity = (1.0f / pow(dist_to_light, 2)) * brightness;
+
+            //diffuse
+            float light_proj = max(0, dot(input.normal, light_vector));
+            float4 diffuse_intensity = lights[i].color * light_proj * intensity; 
+            
+            //specular
+            float3 reflection = normalize(reflect(-light_vector, input.normal));
+            float3 eye_vector = normalize(eye_position - input.world_space_pos);
+            float eye_proj = abs(dot(reflection, eye_vector));
+            float4 specular_intensity = lights[i].color * pow(eye_proj, exponent) * intensity;
+
+            color = ambient + diffuse * diffuse_intensity + specular * specular_intensity;
+            
+            switch(lights[i].light_type) {
+                case DIRECTIONAL_LIGHT: {
+                } break;
                 
-            case POINT_LIGHT: {
-            } break;
+                case POINT_LIGHT: {
+                } break;
                 
-            case SPOTLIGHT: {
-            } break;
+                case SPOTLIGHT: {
+                } break;
+            }
         }
     }
-    float4 color = float4(1.0f, 0.0f, 0.0f, 1.0f);
 
     // solid wire frame
     if(input.wire_frame_on) {
