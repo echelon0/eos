@@ -2,10 +2,9 @@
 /*
   TODO:
   Make sure MSAA can be configured properly on any machine (quality/sample count)
-  Send light information to GPU
-  Textures
-  Gamma correction
   Entity transform/rotation
+  Configure imgui
+  Textures
 */
 
 #define u32 unsigned int

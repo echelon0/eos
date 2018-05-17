@@ -163,5 +163,7 @@ float4 ps_main(GS_OUT input) : SV_TARGET {
             }
         }
     }
+
+    color = pow(color, (1.0f / 2.2f));
     return color;
 }
