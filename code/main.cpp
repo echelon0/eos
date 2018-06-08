@@ -379,14 +379,14 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
                     bool should_show_cursor = false;
                     bool should_center_cursor = (GetActiveWindow() == window);
-                    bool should_update = true;
+                    bool game_paused = false;
                     if(edit_mode) {
 
                         //enable cursor use
                         if(global_input.CONTROL_KEY_TOGGLE) {
                             should_show_cursor = true;
                             should_center_cursor = false;
-                            should_update = false;
+                            game_paused = true;
                             
                             //entity picking
                             if(global_input.LEFT_CLICKED) {
@@ -432,7 +432,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 
                     }
 
-                    if(should_update) {
+                    if(!game_paused) {
                         game_update(&game_state, directx);
                     }
                     
