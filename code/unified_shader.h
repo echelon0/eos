@@ -23,11 +23,12 @@ struct Light {
     float4 position;
     float4 direction;
     float4 color;
-    float4 cone_angle;
+    float cone_angle;
     uint light_type;
     bool enabled;
     uint padding3;
     uint padding4;
+    float3 padding5;
 };
 
 #define MAX_LIGHTS 64
@@ -111,41 +112,69 @@ void gs_main(triangle VS_OUT input[3], inout TriangleStream<GS_OUT> triangle_str
     }
 }
 
+float4 calc_diffuse(float3 light_vector, float3 surface_normal, float4 light_color) {
+    float light_proj = max(0, dot(surface_normal, light_vector));
+    float4 diffuse_intensity = light_color * light_proj;
+    return diffuse_intensity;
+}
+
+float4 calc_specular(float3 light_vector, float3 surface_normal, float3 eye_vector, float4 light_color) {
+    float3 reflection = normalize(reflect(-light_vector, surface_normal));
+    float eye_proj = abs(dot(reflection, eye_vector));
+    float4 specular_intensity = light_color * pow(eye_proj, exponent);
+    return specular_intensity;
+}
+
 float4 ps_main(GS_OUT input) : SV_TARGET {
     float4 color;
+    float4 total_diffuse = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    float4 total_specular = float4(0.0f, 0.0f, 0.0f, 0.0f);
     for(int i = 0; i < MAX_LIGHTS; i++) {
         if(lights[i].enabled) {
-            float3 light_vector = (lights[i].position - input.world_space_pos).xyz;
-            float dist_to_light = length(light_vector);
-            normalize(light_vector);
-            float brightness = 150.0f;
-            float intensity = (1.0f / pow(dist_to_light, 2)) * brightness;
-
-            //diffuse
-            float light_proj = max(0, dot(input.normal, light_vector));
-            float4 diffuse_intensity = lights[i].color * light_proj * intensity; 
-            
-            //specular
-            float3 reflection = normalize(reflect(-light_vector, input.normal));
-            float3 eye_vector = normalize(eye_position - input.world_space_pos);
-            float eye_proj = abs(dot(reflection, eye_vector));
-            float4 specular_intensity = lights[i].color * pow(eye_proj, exponent) * intensity;
-
-            color = ambient + diffuse * diffuse_intensity + specular * specular_intensity;
             
             switch(lights[i].light_type) {
                 case DIRECTIONAL_LIGHT: {
+                    float3 light_vector = -lights[i].direction.xyz;
+                    float3 eye_vector = normalize(eye_position - input.world_space_pos).xyz;
+                    total_diffuse += calc_diffuse(light_vector, input.normal, lights[i].color);
+                    total_specular += calc_specular(light_vector, input.normal, eye_vector, lights[i].color);
                 } break;
                 
                 case POINT_LIGHT: {
+                    float3 light_vector = (lights[i].position - input.world_space_pos).xyz;
+                    float dist_to_light = length(light_vector);
+                    normalize(light_vector);
+                    float brightness = 150.0f;
+                    float attenuation = (1.0f / pow(dist_to_light, 2)) * brightness;
+                    float3 eye_vector = normalize(eye_position - input.world_space_pos).xyz;
+                    
+                    total_diffuse += calc_diffuse(light_vector, input.normal, lights[i].color) * attenuation;
+                    total_specular += calc_specular(light_vector, input.normal, eye_vector, lights[i].color) * attenuation; 
                 } break;
                 
                 case SPOTLIGHT: {
+                    float3 light_vector = (lights[i].position - input.world_space_pos).xyz;
+                    float dist_to_light = length(light_vector);
+                    normalize(light_vector);
+                    float brightness = 150.0f;
+                    float attenuation = (1.0f / pow(dist_to_light, 2)) * brightness;
+
+                    float min_cos = cos(lights[i].cone_angle);
+                    float max_cos = (min_cos + 1.0f) * 2.0f;
+                    float cos_angle = dot(lights[i].direction.xyz, -light_vector);
+                    float spot_intensity = smoothstep(min_cos, max_cos, cos_angle);
+                    float3 eye_vector = normalize(eye_position - input.world_space_pos).xyz;
+                    
+                    total_diffuse += calc_diffuse(light_vector, input.normal, lights[i].color) * attenuation * spot_intensity;
+                    total_specular += calc_specular(light_vector, input.normal, eye_vector, lights[i].color) * attenuation * spot_intensity;
                 } break;
             }
         }
     }
-
+    total_diffuse = saturate(total_diffuse);
+    total_specular = saturate(total_specular);    
+    color = ambient + diffuse * total_diffuse + specular * total_specular;
+    
     // solid wire frame
     if(input.wire_frame_on) {
         float min_dist = min(input.dist.x, input.dist.y);

@@ -32,7 +32,7 @@ struct Light {
     vec3 position;
     vec3 direction;
     vec3 color;
-    vec3 cone_angle;
+    f32 cone_angle;
     u32 light_type;
     bool enabled;
 };
@@ -129,11 +129,12 @@ struct ShaderLight {
     vec4 position;
     vec4 direction;
     vec4 color;
-    vec4 cone_angle;
+    f32 cone_angle;
     u32 light_type;
     bool enabled;
     u32 padding3;
     u32 padding4;
+    vec3 padding5;
 };
 
 struct LightConstants {
@@ -156,10 +157,12 @@ struct D3D_RESOURCE {
     ID3D11Buffer *so_buffer;
     ID3D11RasterizerState *rasterizer_state;
     ID3D11Texture2D *depth_stencil_texture;
-    ID3D11DepthStencilView* depth_stencil_view;
-    
-    Camera camera;
+    ID3D11DepthStencilView *depth_stencil_view;
     int vertex_count;
+
+    //imgui
+    ID3D11ShaderResourceView *imgui_font_texture_view;
+    ID3D11SamplerState *imgui_font_sampler;
 };
 
 bool set_vertex_buffer(D3D_RESOURCE *directx, Array<Entity> &entities) {
@@ -196,7 +199,7 @@ bool set_vertex_buffer(D3D_RESOURCE *directx, Array<Entity> &entities) {
     return true;
 }
 
-bool draw_frame(D3D_RESOURCE *directx, Array<Entity> &entities, Light lights[], vec3 eye_position) {
+bool draw_frame(D3D_RESOURCE *directx, Array<Entity> &entities, Light lights[], Camera camera) {
 
     {
         FLOAT background_color[] = {0.788f, 0.867f, 1.0f, 1.0f};
@@ -220,9 +223,9 @@ bool draw_frame(D3D_RESOURCE *directx, Array<Entity> &entities, Light lights[], 
     constant_buffer_desc.StructureByteStride = 0;
     
     ShaderConstants constants = {};
-    constants.view_matrix = view_transform(directx->camera.position,
-                                           directx->camera.direction,
-                                           directx->camera.up);
+    constants.view_matrix = view_transform(camera.position,
+                                           camera.direction,
+                                           camera.up);
     constants.projection_matrix = perspective(45.0f, 16.0f/9.0f, 0.1f, 1000.0f);
     
     D3D11_BUFFER_DESC material_buffer_desc = {};
@@ -247,13 +250,13 @@ bool draw_frame(D3D_RESOURCE *directx, Array<Entity> &entities, Light lights[], 
     LightConstants light_constants = {};
 
     //light constant buffer
-    light_constants.eye_position = vec4(eye_position, 1.0f);
+    light_constants.eye_position = vec4(camera.position, 1.0f);
     for(int i = 0; i < MAX_LIGHTS; i++)  {
         ShaderLight shader_light = {};
         shader_light.position = vec4(lights[i].position, 1.0f);
         shader_light.direction = vec4(lights[i].direction, 1.0f);
         shader_light.color = vec4(lights[i].color, 1.0f);
-        shader_light.cone_angle = vec4(lights[i].cone_angle, 1.0f);
+        shader_light.cone_angle = lights[i].cone_angle;
         shader_light.light_type = lights[i].light_type;
         shader_light.enabled = lights[i].enabled;
 
@@ -316,27 +319,13 @@ bool draw_frame(D3D_RESOURCE *directx, Array<Entity> &entities, Light lights[], 
             directx->immediate_context->Draw(entities[i].model.material_sizes[mat_index], vertex_draw_offset + entities[i].model.material_indices[mat_index]);
         }
         vertex_draw_offset += entities[i].model.vertex_attributes.size;
-    }
-    
-    HRESULT present_hr = directx->swap_chain->Present(0, 0);
-    if(FAILED(present_hr)) {
-        LOG_ERROR("ERROR", "Unable to swap buffers");
-        return false;
-    }
+    }    
     
     return true;
 }
 
-bool init_D3D(HWND window, D3D_RESOURCE *directx) {
+bool init_D3D(HWND window, D3D_RESOURCE *directx) {    
     HMODULE Direct3D_module_handle = LoadLibraryA("D3D11.dll");
-    
-    directx->feature_level = {};
-    directx->device = {};
-    directx->immediate_context = {};
-    directx->swap_chain = {};
-    directx->back_buffer = {};
-    directx->render_target = {};
-    directx->viewport = {};
     
     DXGI_SWAP_CHAIN_DESC swap_chain_desc = {};
     swap_chain_desc.BufferCount = 2;
@@ -531,10 +520,6 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
     }
     directx->immediate_context->OMSetRenderTargets(1, &directx->render_target, directx->depth_stencil_view);
 
-    directx->camera.position = vec3(0.0f, 1.0f, 0.0f);
-    directx->camera.direction = vec3(0.0f, 0.0f, 1.0f);
-    directx->camera.up = vec3(0.0f, 1.0f, 0.0f);
-    
     return true;
 }
 

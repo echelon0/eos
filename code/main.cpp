@@ -1,30 +1,39 @@
-#include <atlstr.h>  
+
+#define f32 float
+#define u32 unsigned int
+#define LOG_ERROR(Title, Message) MessageBoxA(0, Message, Title, MB_OK|MB_ICONERROR)
+
+#include <atlstr.h>
 /*
   TODO:
   Make sure MSAA can be configured properly on any machine (quality/sample count)
+  Release d3d11 resources when not used anymore
   Entity transform/rotation
   Configure imgui
   Textures
 */
 
-#define u32 unsigned int
-#define f32 float
-#define LOG_ERROR(Title, Message) MessageBoxA(0, Message, Title, MB_OK|MB_ICONERROR)
-
 #include <windows.h>
 #include <Windowsx.h>
 #include <D3Dcompiler.h>
 #include <D3D11.h>
+#define DIRECTINPUT_VERSION 0x0800
+#include <dinput.h>
 #include <stdio.h>
 #include "math.h"
 #include "array.h"
+
+#include "..\code\imgui\imgui_draw.cpp"
+#include "..\code\imgui\imgui_demo.cpp"
+#include "..\code\imgui\imgui.cpp"
+#include "imgui_config.cpp"
 
 struct INPUT_STATE {
     ivec2 client_center;
     bool ESC_KEY;
     
     bool W_KEY;
-    bool A_KEY;                    
+    bool A_KEY;
     bool S_KEY;
     bool D_KEY;
     bool UP_ARROW;
@@ -33,6 +42,7 @@ struct INPUT_STATE {
     bool RIGHT_ARROW;
     bool SPACE_BAR;
     bool SHIFT_KEY;
+    bool F1_KEY;
 
     ivec2 PREV_POS;
     ivec2 CURRENT_POS;
@@ -53,6 +63,7 @@ struct INPUT_STATE {
     bool RIGHT_CLICKED;
 };
 
+bool edit_mode = false;
 static u32 global_iTime = 0;
 static bool global_is_running;
 static INPUT_STATE global_input;
@@ -113,7 +124,10 @@ LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPara
                     case VK_SHIFT: {
                         global_input.SHIFT_KEY = true;
                     } break;
-                    
+                    case VK_F1: {
+                        global_input.F1_KEY = true;
+                    } break;
+                        
                     default:
                         break;
                 }
@@ -154,7 +168,10 @@ LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPara
                     case VK_SHIFT: {
                         global_input.SHIFT_KEY = false;
                     } break;
-                    
+                    case VK_F1: {
+                        global_input.F1_KEY = false;
+                    } break;
+                        
                     default:
                         break;
                 }
@@ -227,6 +244,11 @@ void process_input() {
             global_input.RIGHT_CLICKED = true; 
         }
     }
+    
+    if(global_input.F1_KEY) {
+        edit_mode = !edit_mode;
+        global_input.F1_KEY = false;
+    }
 }
 
 void reset_input() {
@@ -245,34 +267,6 @@ void reset_input() {
         global_input.RIGHT_MOUSE_BUTTON_RELEASED = false;
     }
     global_input.RIGHT_CLICKED = false;
-}
-
-void editor_camera_control(D3D_RESOURCE *directx) {
-    if(global_input.W_KEY) {
-        directx->camera.position += directx->camera.direction * 0.1f;
-    }
-    if(global_input.S_KEY) {
-        directx->camera.position -= directx->camera.direction * 0.1f;
-    }
-    if(global_input.A_KEY) {
-        directx->camera.position += cross(directx->camera.direction, directx->camera.up) * 0.1f;
-    }
-    if(global_input.D_KEY) {
-        directx->camera.position -= cross(directx->camera.direction, directx->camera.up) * 0.1f;
-    }
-    if(global_input.SPACE_BAR && !global_input.SHIFT_KEY) {
-        directx->camera.position += directx->camera.up * 0.1f;
-    }
-    if(global_input.SPACE_BAR && global_input.SHIFT_KEY) {
-        directx->camera.position -= directx->camera.up * 0.1f;
-    }
-    
-    if(global_input.RIGHT_ARROW) {
-        rotate(&directx->camera.direction, 0.01f, Y_AXIS);
-    }
-    if(global_input.LEFT_ARROW) {
-        rotate(&directx->camera.direction, -0.01f, Y_AXIS);
-    }        
 }
 
 f32 get_elapsed_time(LARGE_INTEGER begin_count) {
@@ -330,11 +324,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             if(init_D3D(window, directx)) {
                 global_is_running = true;
                 GameState game_state = {};
-                bool edit_mode = false;
                 
                 //entity creation
                 StaticModel model;
-                model = load_obj("liquid.obj");
+                model = load_obj("island.obj");
                 if(model.vertex_attributes.size == 0) { global_is_running = false; }
                 Entity test_entity = {};
                 test_entity.model = model;
@@ -346,8 +339,16 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 f32 FRAME_RATE = 60.0f;
                 f32 FRAME_FREQUENCY = (1000.0f / FRAME_RATE);
 
+                bool added_light = false; //TODO: remove
 
-                bool added_light = false;
+                IMGUI_CHECKVERSION();
+                ImGui::CreateContext();
+                ImGuiIO& imguiIO = ImGui::GetIO();              
+                ImGui_ImplDX11_Init(window, directx->device, directx->immediate_context);
+
+                ImGui::StyleColorsDark();
+                imguiIO.DisplaySize.x = (f32)client_dim.x;
+                imguiIO.DisplaySize.y = (f32)client_dim.y;
                 
                 while(global_is_running) {
                     if(!initialized) {
@@ -358,7 +359,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     
                     LARGE_INTEGER begin_count;
                     QueryPerformanceCounter(&begin_count);
-                    
+
+                    ImGui_ImplDX11_NewFrame();
                     MSG message;
                     while(PeekMessage(&message, window, 0, 0, PM_REMOVE)) {
                         TranslateMessage(&message);
@@ -370,30 +372,43 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     }
                     process_input();
 
-                    { //EDIT MODE
-                        if(edit_mode) {
-                            if(global_input.RIGHT_MOUSE_BUTTON) {
-                                if(abs(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x) > abs(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.y)) {
-                                    directx->camera.rotate(-global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x*2.0f, Y_AXIS);
-                                } else if(abs(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.x) < abs(global_input.PER_FRAME_DRAG_VECTOR_PERCENT.y)) {
-                                    directx->camera.rotate(-global_input.PER_FRAME_DRAG_VECTOR_PERCENT.y*2.0f, X_AXIS);
-                                }
-                            }
+                    ImGuiIO& imguiIO = ImGui::GetIO();
+                    imguiIO.DeltaTime = 1.0f / FRAME_RATE;
+                    imguiIO.MouseDown[0] = global_input.LEFT_MOUSE_BUTTON;
+                    imguiIO.MouseDown[1] = global_input.RIGHT_MOUSE_BUTTON;
+                    imguiIO.MousePos = global_input.CURRENT_POS;                    
                     
-                            if(global_input.LEFT_CLICKED) {
-                                picked_entity = editor::get_picked_entity_index(directx->camera, vec3(0.0f, 1.0f, 0.0f), global_input.CURRENT_POS, client_dim, 45.0f, 16.0f/9.0f, game_state.entities);
-                                for(int i = 0; i < game_state.entities.size; i++) {
-                                    game_state.entities[i].selected = false;
-                                    if(picked_entity != -1)
-                                        game_state.entities[picked_entity].selected = true;
-                                }
+                    if(edit_mode) {
+
+                        //entity picking
+                        if(global_input.LEFT_CLICKED) {
+                            picked_entity = editor::get_picked_entity_index(game_state.camera, vec3(0.0f, 1.0f, 0.0f), global_input.CURRENT_POS, client_dim, 45.0f, 16.0f/9.0f, game_state.entities);
+                            for(int i = 0; i < game_state.entities.size; i++) {
+                                game_state.entities[i].selected = false; 
+                                if(picked_entity != -1)
+                                    game_state.entities[picked_entity].selected = true;
                             }
-                            editor_camera_control(directx);
                         }
+
+                        if (ImGui::Button("Button"))                            // Buttons return true when clicked (NB: most widgets return true when edited/activated)
+                        ImGui::SameLine();
+                        ImGui::Text("text");
+
+                        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+                
                     }
 
                     game_update(&game_state, directx);
-                    if(!draw_frame(directx, game_state.entities, game_state.lights, directx->camera.position)) break;
+                    
+                    if(!draw_frame(directx, game_state.entities, game_state.lights, game_state.camera)) break;
+                    ImGui::Render();
+                    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+                    
+                    HRESULT present_hr = directx->swap_chain->Present(0, 0);
+                    if(FAILED(present_hr)) {
+                        LOG_ERROR("ERROR", "Unable to swap buffers");
+                        break;
+                    }
                     
                     reset_input();
 
@@ -408,19 +423,15 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         SetCursorPos(client_center_pt.x, client_center_pt.y);
                     }
                     
-                    // REMOVE:
+                    // TODO: REMOVE
                     //light creation
                     if(!added_light) {
-                        editor::add_light(game_state.lights, game_state.num_lights, game_state.entities, POINT_LIGHT, 0);
+                        editor::add_light(game_state.lights, game_state.num_lights, game_state.entities, DIRECTIONAL_LIGHT, 0);
                         added_light = true;
                     }
-                    
-                    frame_duration = get_elapsed_time(begin_count);
-                    CString s;
-                    s.Format(_T("%f"), frame_duration);
-                    SetWindowText(window, s);
                     //////
                 }
+                ImGui::DestroyContext();
             } 
         }
     }
