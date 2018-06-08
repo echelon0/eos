@@ -1,7 +1,7 @@
 
 namespace editor {
 
-    bool add_light(Light lights[], int &num_lights, Array<Entity> entities, u32 light_type, u32 entity_ID) {
+    bool add_light(Light lights[], int &num_lights, Array<Entity> entities,  u32 entity_ID, u32 light_type) {
         //input check
         if(num_lights == MAX_LIGHTS) {
             LOG_ERROR("ERROR", "Maximum number of lights exceeded when attempting to create light source.");

@@ -342,9 +342,11 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 imguiIO.DisplaySize.x = (f32)client_dim.x;
                 imguiIO.DisplaySize.y = (f32)client_dim.y;
 
-                bool added_light = false; //TODO: remove
-                ShowCursor(0);
+                //editor variables
                 int picked_entity = -1;
+                int light_type = -1;
+                                
+                ShowCursor(0);
                 bool initialized = false;
                 while(global_is_running) {
                     if(!initialized) {
@@ -398,7 +400,35 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         }
 
                         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-                            //ImGui::SameLine();
+                        if(picked_entity != -1) {
+                            if(ImGui::Button("Directional"))
+                                light_type = DIRECTIONAL_LIGHT;
+                            ImGui::SameLine();
+                            if(ImGui::Button("Point"))
+                                light_type = POINT_LIGHT;
+                            ImGui::SameLine();
+                            if(ImGui::Button("Spotlight"))
+                                light_type = SPOTLIGHT;
+                            if(light_type != -1) {
+                                f32 intensity;
+                                f32 color[3];
+                                f32 direction[3];
+                                f32 cone_angle;
+                                ImGui::SliderFloat("intensity", &intensity, 0.0f, 1.0f);
+                                ImGui::ColorEdit3("color", color);
+                                if(light_type != POINT_LIGHT) {
+                                    ImGui::SliderFloat3("direction", direction, -1.0f, 1.0f);
+                                }
+                                if(light_type == SPOTLIGHT) {
+                                    ImGui::SliderFloat("intensity", &cone_angle, 0.0f, 1.0f);
+                                }
+                                if(ImGui::Button("Add light")) {
+                                    editor::add_light(game_state.lights, game_state.num_lights, game_state.entities, picked_entity, DIRECTIONAL_LIGHT);
+                                }
+                            }
+
+                        }
+                        //ImGui::SameLine();
                 
                     }
 
@@ -429,14 +459,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     if(should_center_cursor) {
                         SetCursorPos(client_center_pt.x, client_center_pt.y);
                     }
-                    
-                    // TODO: REMOVE
-                    //light creation
-                    if(!added_light) {
-                        editor::add_light(game_state.lights, game_state.num_lights, game_state.entities, DIRECTIONAL_LIGHT, 0);
-                        added_light = true;
-                    }
-                    //////
                 }
                 ImGui::DestroyContext();
             } 
