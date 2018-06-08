@@ -11,6 +11,7 @@
   Entity transform/rotation
   Configure imgui
   Textures
+  Fix picking (use a texture rather than ray tracing)
 */
 
 #include <windows.h>
@@ -42,6 +43,7 @@ struct INPUT_STATE {
     bool RIGHT_ARROW;
     bool SPACE_BAR;
     bool SHIFT_KEY;
+    bool CONTROL_KEY_TOGGLE;
     bool F1_KEY;
 
     ivec2 PREV_POS;
@@ -66,7 +68,7 @@ struct INPUT_STATE {
 bool edit_mode = false;
 static u32 global_iTime = 0;
 static bool global_is_running;
-static INPUT_STATE global_input;
+static INPUT_STATE global_input = {};
 
 #include "renderer.cpp"
 #include "editor.cpp"
@@ -123,6 +125,9 @@ LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPara
                     } break;
                     case VK_SHIFT: {
                         global_input.SHIFT_KEY = true;
+                    } break;
+                    case VK_CONTROL: {
+                        global_input.CONTROL_KEY_TOGGLE = !global_input.CONTROL_KEY_TOGGLE;
                     } break;
                     case VK_F1: {
                         global_input.F1_KEY = true;
@@ -230,8 +235,6 @@ void process_input() {
         global_input.LEFT_DRAG_VECTOR = global_input.CURRENT_POS - global_input.LEFT_DOWN_POS;
         
         if(global_input.LEFT_MOUSE_BUTTON_RELEASED && global_input.LEFT_DRAG_VECTOR == ivec2(0, 0)) {
-            //NOTE(Alex): LEFT_CLICKED is defined as a left mouse button down followed by
-            //            a release in which the cursor stayed in the same position.
             global_input.LEFT_CLICKED = true; 
         }
     }
@@ -239,8 +242,6 @@ void process_input() {
         global_input.LEFT_DRAG_VECTOR = global_input.CURRENT_POS - global_input.LEFT_DOWN_POS;
         
         if(global_input.RIGHT_MOUSE_BUTTON_RELEASED && global_input.RIGHT_DRAG_VECTOR == ivec2(0, 0)) {
-            //NOTE(Alex): RIGHT_CLICKED is defined as a right mouse button down followed by
-            //            a release in which the cursor stayed in the same position.
             global_input.RIGHT_CLICKED = true; 
         }
     }
@@ -289,7 +290,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     ivec2 window_pos;    
     window_pos.y = (screen_height - window_dim.y) / 2;
     window_pos.x = (screen_width - window_dim.x) / 2;
-    f32 frame_rate  = 60.0f;
     
     WNDCLASS window_class = {};
     window_class.style = CS_OWNDC|CS_HREDRAW|CS_VREDRAW;
@@ -309,9 +309,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             hInstance, 0);
         
         if(window) {
-            global_input = {};
-            ShowCursor(0);
-            
             RECT client_rect;
             GetClientRect(window, &client_rect);
             ivec2 client_dim = ivec2(client_rect.right, client_rect.bottom);
@@ -319,37 +316,36 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             POINT client_center_pt = {(LONG)global_input.client_center.x, (LONG)global_input.client_center.y};
             ClientToScreen(window, &client_center_pt);
 
-            D3D_RESOURCE *directx = (D3D_RESOURCE *)malloc(sizeof(*directx));
+            f32 FRAME_RATE = 60.0f;
+            f32 FRAME_FREQUENCY = (1000.0f / FRAME_RATE);
 
+            D3D_RESOURCE *directx = (D3D_RESOURCE *)malloc(sizeof(*directx));
             if(init_D3D(window, directx)) {
                 global_is_running = true;
                 GameState game_state = {};
                 
-                //entity creation
+                //NOTE: TEST CODE for entity creation
                 StaticModel model;
                 model = load_obj("island.obj");
                 if(model.vertex_attributes.size == 0) { global_is_running = false; }
                 Entity test_entity = {};
                 test_entity.model = model;
                 game_state.entities.push_back(test_entity);
-                
-                bool initialized = false;
-                int picked_entity = -1;
+                /////////////////////////                
 
-                f32 FRAME_RATE = 60.0f;
-                f32 FRAME_FREQUENCY = (1000.0f / FRAME_RATE);
-
-                bool added_light = false; //TODO: remove
-
+                //imgui setup
                 IMGUI_CHECKVERSION();
                 ImGui::CreateContext();
+                ImGui::StyleColorsDark();
                 ImGuiIO& imguiIO = ImGui::GetIO();              
                 ImGui_ImplDX11_Init(window, directx->device, directx->immediate_context);
-
-                ImGui::StyleColorsDark();
                 imguiIO.DisplaySize.x = (f32)client_dim.x;
                 imguiIO.DisplaySize.y = (f32)client_dim.y;
-                
+
+                bool added_light = false; //TODO: remove
+                ShowCursor(0);
+                int picked_entity = -1;
+                bool initialized = false;
                 while(global_is_running) {
                     if(!initialized) {
                         set_vertex_buffer(directx, game_state.entities);
@@ -372,33 +368,43 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     }
                     process_input();
 
+                    //imgui input
                     ImGuiIO& imguiIO = ImGui::GetIO();
                     imguiIO.DeltaTime = 1.0f / FRAME_RATE;
                     imguiIO.MouseDown[0] = global_input.LEFT_MOUSE_BUTTON;
                     imguiIO.MouseDown[1] = global_input.RIGHT_MOUSE_BUTTON;
                     imguiIO.MousePos = global_input.CURRENT_POS;                    
-                    
+
+                    bool should_show_cursor = false;
+                    bool should_center_cursor = (GetActiveWindow() == window);
+                    bool should_update = true;
                     if(edit_mode) {
 
-                        //entity picking
-                        if(global_input.LEFT_CLICKED) {
-                            picked_entity = editor::get_picked_entity_index(game_state.camera, vec3(0.0f, 1.0f, 0.0f), global_input.CURRENT_POS, client_dim, 45.0f, 16.0f/9.0f, game_state.entities);
-                            for(int i = 0; i < game_state.entities.size; i++) {
-                                game_state.entities[i].selected = false; 
-                                if(picked_entity != -1)
-                                    game_state.entities[picked_entity].selected = true;
+                        //enable cursor use
+                        if(global_input.CONTROL_KEY_TOGGLE) {
+                            should_show_cursor = true;
+                            should_center_cursor = false;
+                            should_update = false;
+                            
+                            //entity picking
+                            if(global_input.LEFT_CLICKED) {
+                                picked_entity = editor::get_picked_entity_index(game_state.camera, vec3(0.0f, 1.0f, 0.0f), global_input.CURRENT_POS, client_dim, 45.0f, 16.0f/9.0f, game_state.entities);
+                                for(int i = 0; i < game_state.entities.size; i++) {
+                                    game_state.entities[i].selected = false; 
+                                    if(picked_entity != -1)
+                                        game_state.entities[picked_entity].selected = true;
+                                }
                             }
                         }
 
-                        if (ImGui::Button("Button"))                            // Buttons return true when clicked (NB: most widgets return true when edited/activated)
-                        ImGui::SameLine();
-                        ImGui::Text("text");
-
                         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+                            //ImGui::SameLine();
                 
                     }
 
-                    game_update(&game_state, directx);
+                    if(should_update) {
+                        game_update(&game_state, directx);
+                    }
                     
                     if(!draw_frame(directx, game_state.entities, game_state.lights, game_state.camera)) break;
                     ImGui::Render();
@@ -417,9 +423,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         Sleep((DWORD)(FRAME_FREQUENCY - frame_duration));
                     }
                     global_iTime++;
-                    
-                    // set mouse cursor to center of screen
-                    if((GetActiveWindow() == window)) {
+
+                    //configure mouse cursor
+                    ShowCursor(should_show_cursor);
+                    if(should_center_cursor) {
                         SetCursorPos(client_center_pt.x, client_center_pt.y);
                     }
                     

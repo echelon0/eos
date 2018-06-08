@@ -159,22 +159,16 @@ struct D3D_RESOURCE {
     ID3D11Texture2D *depth_stencil_texture;
     ID3D11DepthStencilView *depth_stencil_view;
     int vertex_count;
-
-    //imgui
-    ID3D11ShaderResourceView *imgui_font_texture_view;
-    ID3D11SamplerState *imgui_font_sampler;
 };
 
 bool set_vertex_buffer(D3D_RESOURCE *directx, Array<Entity> &entities) {
     
     Array<VertexAttribute> all_vertices;
-
     for(int entity_index = 0; entity_index < entities.size; entity_index++) {
         for(int i = 0; i < entities[entity_index].model.vertex_attributes.size; i++) {
             all_vertices.push_back(entities[entity_index].model.vertex_attributes[i]);
         }
     }
-
     directx->vertex_count = all_vertices.size;
     
     D3D11_BUFFER_DESC vertex_buffer_desc = {};
@@ -329,13 +323,13 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
     
     DXGI_SWAP_CHAIN_DESC swap_chain_desc = {};
     swap_chain_desc.BufferCount = 2;
-    swap_chain_desc.BufferDesc.Width = 0; //default value 0 auto sets width/height
+    swap_chain_desc.BufferDesc.Width = 0;
     swap_chain_desc.BufferDesc.Height = 0;
     swap_chain_desc.BufferDesc.RefreshRate.Numerator = 1; //refresh rate for vsync
     swap_chain_desc.BufferDesc.RefreshRate.Denominator = 60;
     swap_chain_desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    swap_chain_desc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED; //specifies what method the raster uses to create an image
-    swap_chain_desc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED; //specifies how to stretch and image to the screen
+    swap_chain_desc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+    swap_chain_desc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 
     swap_chain_desc.SampleDesc.Count = 4; //count=1,quality=0 turns off multisampling
     swap_chain_desc.SampleDesc.Quality = 16;
@@ -434,6 +428,18 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
         return false;
     }
     directx->immediate_context->IASetInputLayout(input_layout);
+
+    // viewport
+    D3D11_TEXTURE2D_DESC back_buffer_desc;
+    directx->back_buffer->GetDesc(&back_buffer_desc);
+    
+    directx->viewport.Width = (FLOAT)back_buffer_desc.Width;
+    directx->viewport.Height = (FLOAT)back_buffer_desc.Height;
+    directx->viewport.MinDepth = 0.0f;
+    directx->viewport.MaxDepth = 1.0f;
+    directx->viewport.TopLeftX = 0;
+    directx->viewport.TopLeftY = 0;
+    directx->immediate_context->RSSetViewports(1, &directx->viewport);
         
     { // rasterizer config
         
@@ -457,17 +463,6 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
 
         directx->immediate_context->RSSetState(directx->rasterizer_state);
     }
-    
-    D3D11_TEXTURE2D_DESC back_buffer_desc;
-    directx->back_buffer->GetDesc(&back_buffer_desc);
-    
-    directx->viewport.Width = (FLOAT)back_buffer_desc.Width;
-    directx->viewport.Height = (FLOAT)back_buffer_desc.Height;
-    directx->viewport.MinDepth = 0.0f;
-    directx->viewport.MaxDepth = 1.0f;
-    directx->viewport.TopLeftX = 0;
-    directx->viewport.TopLeftY = 0;
-    directx->immediate_context->RSSetViewports(1, &directx->viewport);
 
     { // depth buffer config
         
