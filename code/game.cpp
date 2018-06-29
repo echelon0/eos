@@ -21,7 +21,7 @@ struct GameState {
     Player player;
 };
 
-void game_update(GameState *game_state, D3D_RESOURCE *directx) {
+void game_update(GameState *game_state, D3D_RESOURCES *directx) {
     if(!game_state->initialized) {
         
         game_state->camera.position = vec3(0.0f, 100.0f, 0.0f);

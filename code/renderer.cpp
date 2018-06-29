@@ -16,6 +16,7 @@ struct Material {
 };
 
 struct StaticModel {
+    char str_name[128];
     Array<VertexAttribute> vertex_attributes;
     Array<Material> materials;
     Array<int> material_indices; //vertex_attribute indices with new materials
@@ -142,26 +143,24 @@ struct LightConstants {
     vec4 eye_position;
 };
 
-struct D3D_RESOURCE {
+struct D3D_RESOURCES {
     D3D_FEATURE_LEVEL feature_level;
     ID3D11Device *device;
     ID3D11DeviceContext *immediate_context;
-    IDXGISwapChain *swap_chain;
-    ID3D11Texture2D *back_buffer;
+    IDXGISwapChain1 *swap_chain;
     ID3D11RenderTargetView *render_target;
     D3D11_VIEWPORT viewport;
     ID3D11VertexShader *vertex_shader;
     ID3D11GeometryShader *geometry_shader;    
     ID3D11PixelShader *pixel_shader;
     ID3D11Buffer *vertex_buffer;
-    ID3D11Buffer *so_buffer;
     ID3D11RasterizerState *rasterizer_state;
     ID3D11Texture2D *depth_stencil_texture;
     ID3D11DepthStencilView *depth_stencil_view;
     int vertex_count;
 };
 
-bool set_vertex_buffer(D3D_RESOURCE *directx, Array<Entity> &entities) {
+bool set_vertex_buffer(D3D_RESOURCES *directx, Array<Entity> &entities) {
     
     Array<VertexAttribute> all_vertices;
     for(int entity_index = 0; entity_index < entities.size; entity_index++) {
@@ -193,7 +192,7 @@ bool set_vertex_buffer(D3D_RESOURCE *directx, Array<Entity> &entities) {
     return true;
 }
 
-bool draw_frame(D3D_RESOURCE *directx, Array<Entity> &entities, Light lights[], Camera camera) {
+bool draw_frame(D3D_RESOURCES *directx, Array<Entity> &entities, Light lights[], Camera camera) {
 
     {
         FLOAT background_color[] = {0.788f, 0.867f, 1.0f, 1.0f};
@@ -204,7 +203,8 @@ bool draw_frame(D3D_RESOURCE *directx, Array<Entity> &entities, Light lights[], 
         UINT offset = 0;
         directx->immediate_context->IASetVertexBuffers(0, 1, &directx->vertex_buffer, &stride, &offset);
         directx->immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
+        
+        directx->immediate_context->OMSetRenderTargets(1, &directx->render_target, directx->depth_stencil_view);
     }
 
     
@@ -318,54 +318,98 @@ bool draw_frame(D3D_RESOURCE *directx, Array<Entity> &entities, Light lights[], 
     return true;
 }
 
-bool init_D3D(HWND window, D3D_RESOURCE *directx) {    
+bool init_D3D(HWND window, D3D_RESOURCES *directx) {
     HMODULE Direct3D_module_handle = LoadLibraryA("D3D11.dll");
     
-    DXGI_SWAP_CHAIN_DESC swap_chain_desc = {};
-    swap_chain_desc.BufferCount = 2;
-    swap_chain_desc.BufferDesc.Width = 0;
-    swap_chain_desc.BufferDesc.Height = 0;
-    swap_chain_desc.BufferDesc.RefreshRate.Numerator = 1; //refresh rate for vsync
-    swap_chain_desc.BufferDesc.RefreshRate.Denominator = 60;
-    swap_chain_desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    swap_chain_desc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-    swap_chain_desc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-
-    swap_chain_desc.SampleDesc.Count = 4; //count=1,quality=0 turns off multisampling
-    swap_chain_desc.SampleDesc.Quality = 16;
-
-    swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swap_chain_desc.OutputWindow = window;
-    swap_chain_desc.Windowed = true; //TODO(Alex): IDXGISwapChain::SetFullscreenState
-    swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-    swap_chain_desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-    
-    HRESULT device_hr = D3D11CreateDeviceAndSwapChain(0, D3D_DRIVER_TYPE_HARDWARE,
-                                                      0, 0,
-                                                      0, 0,
-                                                      D3D11_SDK_VERSION, &swap_chain_desc,
-                                                      &directx->swap_chain, &directx->device,
-                                                      &directx->feature_level, &directx->immediate_context);
+    HRESULT device_hr = D3D11CreateDevice(0, D3D_DRIVER_TYPE_HARDWARE,
+                                          0, D3D11_CREATE_DEVICE_DEBUG,
+                                          0, 0,
+                                          D3D11_SDK_VERSION, &directx->device,
+                                          &directx->feature_level, &directx->immediate_context);
     if(FAILED(device_hr)) {
         LOG_ERROR("ERROR", "Cannot create Direct3D device");
         return false;
     }
+
+    UINT msaa_sample_count = 4; //TODO: make it configurable by the user
+    UINT msaa_quality = 0;
     
+    DXGI_SWAP_CHAIN_DESC1 swap_chain_desc = {};
+    swap_chain_desc.Width = 0;
+    swap_chain_desc.Height = 0;
+    swap_chain_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    swap_chain_desc.Stereo = 0;
+    
+    HRESULT get_msaa_quality_level_hr = directx->device->CheckMultisampleQualityLevels(swap_chain_desc.Format, msaa_sample_count, &msaa_quality);
+    if(FAILED(get_msaa_quality_level_hr)) {
+        LOG_ERROR("ERROR", "Cannot check multisample quality level");
+        return false;
+    }
+    swap_chain_desc.SampleDesc.Count = 1; //count=1,quality=0 turns off multisampling
+    swap_chain_desc.SampleDesc.Quality = 0;
+
+    swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swap_chain_desc.BufferCount = 2;
+
+    swap_chain_desc.Scaling = DXGI_SCALING_NONE; //NOTE: Maybe DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED? TODO: Check on this
+    swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL; //DXGI_SWAP_EFFECT_DISCARD;
+        
+    swap_chain_desc.Flags = 0;//DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+    //creating the swap chain
+    IDXGIDevice *dxgi_device;
+    HRESULT hr = directx->device->QueryInterface( __uuidof(IDXGIDevice), (void **) &dxgi_device);
+    if(SUCCEEDED(hr)) {
+        IDXGIAdapter *dxgi_adapter = 0;
+        hr = dxgi_device->GetParent( __uuidof(IDXGIAdapter), (void **) &dxgi_adapter);
+        if(SUCCEEDED(hr)) {
+            IDXGIFactory2 *dxgi_factory = 0;
+            hr = dxgi_adapter->GetParent( __uuidof(IDXGIFactory), (void **) &dxgi_factory);
+            if(SUCCEEDED(hr)) {
+
+                HRESULT swap_chain_hr = dxgi_factory->CreateSwapChainForHwnd(directx->device, window,
+                                                                             &swap_chain_desc, 0,
+                                                                             0, &directx->swap_chain);
+                if(FAILED(swap_chain_hr)) {
+                    LOG_ERROR("ERROR", "Cannot create Direct3D swap chain");
+                    return false;
+                }               
+
+                dxgi_factory->Release();
+            } else {
+                LOG_ERROR("ERROR", "Cannot create DXGIFactory");
+                return false;
+            }
+            dxgi_adapter->Release();
+        } else {
+            LOG_ERROR("ERROR", "Cannot create DXGIAdapter");
+            return false;
+        }
+        dxgi_device->Release();
+    } else {
+        LOG_ERROR("ERROR", "Cannot create DXGIDevice");
+        return false;
+    }    
+
+    ID3D11Texture2D *back_buffer;
     // get pointer to the back buffer
-    HRESULT get_buffer_hr = directx->swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&directx->back_buffer);
+    HRESULT get_buffer_hr = directx->swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&back_buffer);
     if(FAILED(get_buffer_hr)) {
         LOG_ERROR("ERROR", "Cannot retrieve back buffer location");
         return false;
     }
     
     // create a render target view
-    HRESULT create_view_hr = directx->device->CreateRenderTargetView(directx->back_buffer, 0, &directx->render_target);    
+    HRESULT create_view_hr = directx->device->CreateRenderTargetView(back_buffer, 0, &directx->render_target);
     if(FAILED(create_view_hr)) {
         LOG_ERROR("ERROR", "Cannot create render target view");
         return false;
     }
+    D3D11_TEXTURE2D_DESC back_buffer_desc;
+    back_buffer->GetDesc(&back_buffer_desc);
+    ivec2 back_buffer_dim = ivec2(back_buffer_desc.Width, back_buffer_desc.Height);
+    back_buffer->Release();
     
-
     // load shaders
     ID3DBlob *vs_blob = (ID3DBlob *)malloc(sizeof(*vs_blob));
     ID3DBlob *gs_blob = (ID3DBlob *)malloc(sizeof(*gs_blob));
@@ -430,11 +474,8 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
     directx->immediate_context->IASetInputLayout(input_layout);
 
     // viewport
-    D3D11_TEXTURE2D_DESC back_buffer_desc;
-    directx->back_buffer->GetDesc(&back_buffer_desc);
-    
-    directx->viewport.Width = (FLOAT)back_buffer_desc.Width;
-    directx->viewport.Height = (FLOAT)back_buffer_desc.Height;
+    directx->viewport.Width = (FLOAT)back_buffer_dim.x;
+    directx->viewport.Height = (FLOAT)back_buffer_dim.y;
     directx->viewport.MinDepth = 0.0f;
     directx->viewport.MaxDepth = 1.0f;
     directx->viewport.TopLeftX = 0;
@@ -468,13 +509,13 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
         
         directx->depth_stencil_texture = {};
         D3D11_TEXTURE2D_DESC depth_stencil_texture_desc = {};
-        depth_stencil_texture_desc.Width = back_buffer_desc.Width;
-        depth_stencil_texture_desc.Height = back_buffer_desc.Height;
+        depth_stencil_texture_desc.Width = back_buffer_dim.x;
+        depth_stencil_texture_desc.Height = back_buffer_dim.y;
         depth_stencil_texture_desc.MipLevels = 1;
         depth_stencil_texture_desc.ArraySize = 1;
         depth_stencil_texture_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-        depth_stencil_texture_desc.SampleDesc.Count = 4; 
-        depth_stencil_texture_desc.SampleDesc.Quality = 16;
+        depth_stencil_texture_desc.SampleDesc.Count = 1;
+        depth_stencil_texture_desc.SampleDesc.Quality = 0;
         depth_stencil_texture_desc.Usage = D3D11_USAGE_DEFAULT;
         depth_stencil_texture_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
         depth_stencil_texture_desc.CPUAccessFlags = 0;
@@ -513,8 +554,20 @@ bool init_D3D(HWND window, D3D_RESOURCE *directx) {
             return false;
         }
     }
-    directx->immediate_context->OMSetRenderTargets(1, &directx->render_target, directx->depth_stencil_view);
-
+    
     return true;
 }
 
+void clean_D3D(D3D_RESOURCES *directx) {
+    directx->device->Release();
+    directx->immediate_context->Release();
+    directx->swap_chain->Release();
+    directx->render_target->Release();
+    directx->vertex_shader->Release();
+    directx->geometry_shader->Release();
+    directx->pixel_shader->Release();
+    directx->vertex_buffer->Release();
+    directx->rasterizer_state->Release();
+    directx->depth_stencil_texture->Release();
+    directx->depth_stencil_view->Release();
+}

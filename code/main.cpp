@@ -7,7 +7,6 @@
 /*
   TODO:
   Make sure MSAA can be configured properly on any machine (quality/sample count)
-  Release d3d11 resources when not used anymore
   Entity transform/rotation
   Configure imgui
   Textures
@@ -18,6 +17,8 @@
 #include <Windowsx.h>
 #include <D3Dcompiler.h>
 #include <D3D11.h>
+#include <DXGI.h>
+#include <DXGI1_2.h>
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
 #include <stdio.h>
@@ -71,6 +72,7 @@ static bool global_is_running;
 static INPUT_STATE global_input = {};
 
 #include "renderer.cpp"
+#include "picking_renderer.cpp"
 #include "editor.cpp"
 #include "file_loader.cpp"
 #include "game.cpp"
@@ -319,7 +321,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             f32 FRAME_RATE = 60.0f;
             f32 FRAME_FREQUENCY = (1000.0f / FRAME_RATE);
 
-            D3D_RESOURCE *directx = (D3D_RESOURCE *)malloc(sizeof(*directx));
+            D3D_RESOURCES *directx = (D3D_RESOURCES *)malloc(sizeof(*directx));
             if(init_D3D(window, directx)) {
                 global_is_running = true;
                 GameState game_state = {};
@@ -341,7 +343,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 ImGui_ImplDX11_Init(window, directx->device, directx->immediate_context);
                 imguiIO.DisplaySize.x = (f32)client_dim.x;
                 imguiIO.DisplaySize.y = (f32)client_dim.y;
-
+                
+                ImGuiWindowFlags general_imgui_window_flags;
+                general_imgui_window_flags |= ImGuiWindowFlags_AlwaysAutoResize;
+                
                 //editor variables
                 int picked_entity = -1;
                 int light_type = -1;
@@ -381,7 +386,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     bool should_center_cursor = (GetActiveWindow() == window);
                     bool game_paused = false;
                     if(edit_mode) {
-
+                        ImGui::Begin("Debug", 0, general_imgui_window_flags);
                         //enable cursor use
                         if(global_input.CONTROL_KEY_TOGGLE) {
                             should_show_cursor = true;
@@ -401,15 +406,27 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
                         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
                         if(picked_entity != -1) {
-                            if(ImGui::Button("Directional"))
-                                light_type = DIRECTIONAL_LIGHT;
-                            ImGui::SameLine();
-                            if(ImGui::Button("Point"))
-                                light_type = POINT_LIGHT;
-                            ImGui::SameLine();
-                            if(ImGui::Button("Spotlight"))
-                                light_type = SPOTLIGHT;
-                            if(light_type != -1) {
+                            ImGui::End();
+                            ImGui::Begin(game_state.entities[picked_entity].model.str_name, 0, general_imgui_window_flags);
+                            if(light_type == -1) {
+                                ImGui::Text("Add light:");
+                                ImGui::SameLine();
+                                if(ImGui::Button("Directional"))
+                                    light_type = DIRECTIONAL_LIGHT;
+                                ImGui::SameLine();
+                                if(ImGui::Button("Point"))
+                                    light_type = POINT_LIGHT;
+                                ImGui::SameLine();
+                                if(ImGui::Button("Spotlight"))
+                                    light_type = SPOTLIGHT;
+                            } else {
+                                if(light_type == DIRECTIONAL_LIGHT) {
+                                    ImGui::Text("Add light: Directional");
+                                } else if(light_type == POINT_LIGHT) {
+                                    ImGui::Text("Add light: Point");
+                                } else if(light_type == SPOTLIGHT){
+                                    ImGui::Text("Add light: Spotlight");
+                                }
                                 f32 intensity;
                                 f32 color[3];
                                 f32 direction[3];
@@ -420,16 +437,21 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                                     ImGui::SliderFloat3("direction", direction, -1.0f, 1.0f);
                                 }
                                 if(light_type == SPOTLIGHT) {
-                                    ImGui::SliderFloat("intensity", &cone_angle, 0.0f, 1.0f);
+                                    ImGui::SliderFloat("cone angle", &cone_angle, 0.0f, 1.0f);
                                 }
                                 if(ImGui::Button("Add light")) {
                                     editor::add_light(game_state.lights, game_state.num_lights, game_state.entities, picked_entity, DIRECTIONAL_LIGHT);
+                                    light_type = -1;
+                                }
+                                ImGui::SameLine();
+                                if(ImGui::Button("Cancel")) {
+                                    light_type = -1;
                                 }
                             }
-
+                            ImGui::End();
+                            ImGui::Begin("Debug", 0, general_imgui_window_flags);
                         }
-                        //ImGui::SameLine();
-                
+                        ImGui::End();
                     }
 
                     if(!game_paused) {
@@ -439,8 +461,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     if(!draw_frame(directx, game_state.entities, game_state.lights, game_state.camera)) break;
                     ImGui::Render();
                     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-                    
-                    HRESULT present_hr = directx->swap_chain->Present(0, 0);
+
+                    DXGI_PRESENT_PARAMETERS present_parameters = { 0, NULL, NULL, NULL};
+                    HRESULT present_hr = directx->swap_chain->Present1(0, 0, &present_parameters);
                     if(FAILED(present_hr)) {
                         LOG_ERROR("ERROR", "Unable to swap buffers");
                         break;
@@ -461,7 +484,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     }
                 }
                 ImGui::DestroyContext();
-            } 
+            }
+            clean_D3D(directx);
         }
     }
 }

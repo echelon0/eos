@@ -192,13 +192,16 @@ StaticModel load_obj(char *file_name) {
             }
         }
     }
-
+    
     if(loaded_model.materials.size >= 2) {
         int prev_mat_size = loaded_model.vertex_attributes.size - loaded_model.material_indices[loaded_model.material_indices.size - 2];
         loaded_model.material_sizes.push_back(prev_mat_size);
     } else if(loaded_model.materials.size == 1) {
         loaded_model.material_sizes.push_back(loaded_model.vertex_attributes.size);
     }
+
+    string_copy(loaded_model.str_name, file_name);
+    
     delete file_path;
     delete positions.data;
     delete normals.data;
