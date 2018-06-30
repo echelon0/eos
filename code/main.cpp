@@ -322,7 +322,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             f32 FRAME_FREQUENCY = (1000.0f / FRAME_RATE);
 
             D3D_RESOURCES *directx = (D3D_RESOURCES *)malloc(sizeof(*directx));
-            if(init_D3D(window, directx)) {
+            PICKING_D3D_RESOURCES *directx_picking = (PICKING_D3D_RESOURCES *)malloc(sizeof(*directx_picking));     
+            if(init_D3D(window, directx) && init_picking_D3D(window, directx_picking)) {
                 global_is_running = true;
                 GameState game_state = {};
                 
@@ -486,6 +487,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 ImGui::DestroyContext();
             }
             clean_D3D(directx);
+            clean_picking_D3D(directx_picking);
         }
     }
 }
