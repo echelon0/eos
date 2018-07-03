@@ -4,7 +4,7 @@ cbuffer ShaderConstants : register(b0) {
     matrix view_matrix;
     matrix projection_matrix;
     bool wire_frame_on;
-    uint padding0;
+    uint entity_id;
     uint padding1;
     uint padding2;
 };
@@ -52,6 +52,7 @@ struct VS_OUT {
     float3 normal : NORMAL;
     float3 texcoord : TEXCOORD;
     bool wire_frame_on : FOG;
+    int entity_id : BLENDINDICES;
 };
 
 struct GS_OUT {
@@ -60,7 +61,13 @@ struct GS_OUT {
     float3 normal : NORMAL;
     float3 texcoord : TEXCOORD;
     bool wire_frame_on : FOG;
+    int entity_id : BLENDINDICES;
     float3 dist : DEPTH; // distance to opposite edge
+};
+
+struct PS_OUT {
+    float4 color : SV_Target0;
+    int entity_id : SV_Target1;
 };
 
 VS_OUT vs_main(VS_IN input) {
@@ -73,6 +80,7 @@ VS_OUT vs_main(VS_IN input) {
     output.normal = normalize(output.normal);
     output.texcoord = input.texcoord;
     output.wire_frame_on = wire_frame_on;
+    output.entity_id = entity_id;
     
     return output;
 }
@@ -107,6 +115,7 @@ void gs_main(triangle VS_OUT input[3], inout TriangleStream<GS_OUT> triangle_str
         output.normal = input[i].normal;
         output.texcoord = input[i].texcoord;
         output.wire_frame_on = input[i].wire_frame_on;
+        output.entity_id = input[i].entity_id;
         output.dist = height[i];
         triangle_stream.Append(output);
     }
@@ -125,7 +134,8 @@ float4 calc_specular(float3 light_vector, float3 surface_normal, float3 eye_vect
     return specular_intensity;
 }
 
-float4 ps_main(GS_OUT input) : SV_TARGET {
+PS_OUT ps_main(GS_OUT input) {
+    PS_OUT output;
     float4 color;
     float4 total_diffuse = float4(0.0f, 0.0f, 0.0f, 0.0f);
     float4 total_specular = float4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -193,6 +203,7 @@ float4 ps_main(GS_OUT input) : SV_TARGET {
         }
     }
 
-    color = pow(color, (1.0f / 2.2f));
-    return color;
+    output.color = pow(color, (1.0f / 2.2f));
+    output.entity_id = input.entity_id;
+    return output;
 }

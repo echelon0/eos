@@ -111,7 +111,7 @@ struct ShaderConstants {
     mat44 view_matrix;
     mat44 projection_matrix;
     bool wire_frame_on;
-    u32 padding0;
+    int entity_id;
     u32 padding1;
     u32 padding2;
 };
@@ -148,7 +148,9 @@ struct D3D_RESOURCES {
     ID3D11Device *device;
     ID3D11DeviceContext *immediate_context;
     IDXGISwapChain1 *swap_chain;
-    ID3D11RenderTargetView *render_target;
+    ID3D11Texture2D *back_buffer;
+    ID3D11Texture2D *picking_buffer;
+    ID3D11RenderTargetView *render_target_views[2];
     D3D11_VIEWPORT viewport;
     ID3D11VertexShader *vertex_shader;
     ID3D11GeometryShader *geometry_shader;    
@@ -157,6 +159,7 @@ struct D3D_RESOURCES {
     ID3D11RasterizerState *rasterizer_state;
     ID3D11Texture2D *depth_stencil_texture;
     ID3D11DepthStencilView *depth_stencil_view;
+    void *picking_data;
     int vertex_count;
 };
 
@@ -194,19 +197,18 @@ bool set_vertex_buffer(D3D_RESOURCES *directx, Array<Entity> &entities) {
 
 bool draw_frame(D3D_RESOURCES *directx, Array<Entity> &entities, Light lights[], Camera camera) {
 
-    {
-        FLOAT background_color[] = {0.788f, 0.867f, 1.0f, 1.0f};
-        directx->immediate_context->ClearRenderTargetView(directx->render_target, background_color);
-        directx->immediate_context->ClearDepthStencilView(directx->depth_stencil_view, D3D11_CLEAR_DEPTH, 1.0f, 0);
-                    
-        UINT stride = sizeof(VertexAttribute);
-        UINT offset = 0;
-        directx->immediate_context->IASetVertexBuffers(0, 1, &directx->vertex_buffer, &stride, &offset);
-        directx->immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    FLOAT background_color[] = {0.788f, 0.867f, 1.0f, 1.0f};
+    FLOAT picking_buffer_background[] = {-1.0f, -1.0f, -1.0f, -1.0f};
+    directx->immediate_context->ClearRenderTargetView(directx->render_target_views[0], background_color);
+    directx->immediate_context->ClearRenderTargetView(directx->render_target_views[1], picking_buffer_background);
+    directx->immediate_context->ClearDepthStencilView(directx->depth_stencil_view, D3D11_CLEAR_DEPTH, 1.0f, 0);
+    
+    UINT stride = sizeof(VertexAttribute);
+    UINT offset = 0;
+    directx->immediate_context->IASetVertexBuffers(0, 1, &directx->vertex_buffer, &stride, &offset);
+    directx->immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         
-        directx->immediate_context->OMSetRenderTargets(1, &directx->render_target, directx->depth_stencil_view);
-    }
-
+    directx->immediate_context->OMSetRenderTargets(2, &directx->render_target_views[0], directx->depth_stencil_view);
     
     D3D11_BUFFER_DESC constant_buffer_desc = {};
     constant_buffer_desc.ByteWidth = sizeof(ShaderConstants);
@@ -278,6 +280,7 @@ bool draw_frame(D3D_RESOURCES *directx, Array<Entity> &entities, Light lights[],
         //vertex constant buffer
         constants.world_matrix = make_scaling_matrix(1.0f, 1.0f, 1.0f, 1.0f); // NOTE(Alex): not currently used
         constants.wire_frame_on = entities[i].selected;
+        constants.entity_id = entities[i].ID;
         
         D3D11_SUBRESOURCE_DATA constant_buffer_data = {};
         constant_buffer_data.pSysMem = &constants;
@@ -391,26 +394,41 @@ bool init_D3D(HWND window, D3D_RESOURCES *directx) {
         return false;
     }    
 
-    ID3D11Texture2D *back_buffer;
-    // get pointer to the back buffer
-    HRESULT get_buffer_hr = directx->swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&back_buffer);
+    HRESULT get_buffer_hr = directx->swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&directx->back_buffer);
     if(FAILED(get_buffer_hr)) {
         LOG_ERROR("ERROR", "Cannot retrieve back buffer location");
         return false;
-    }
+    }    
+
+    D3D11_TEXTURE2D_DESC back_buffer_desc;
+    directx->back_buffer->GetDesc(&back_buffer_desc);
+    ivec2 back_buffer_dim = ivec2(back_buffer_desc.Width, back_buffer_desc.Height);
     
-    // create a render target view
-    HRESULT create_view_hr = directx->device->CreateRenderTargetView(back_buffer, 0, &directx->render_target);
-    if(FAILED(create_view_hr)) {
-        LOG_ERROR("ERROR", "Cannot create render target view");
+    D3D11_TEXTURE2D_DESC picking_buffer_desc = {};
+    picking_buffer_desc.Width = back_buffer_dim.x;
+    picking_buffer_desc.Height = back_buffer_dim.y;
+    picking_buffer_desc.MipLevels = 1;
+    picking_buffer_desc.ArraySize = 1;
+    picking_buffer_desc.Format = DXGI_FORMAT_R32_SINT;
+    picking_buffer_desc.SampleDesc.Count = 1;
+    picking_buffer_desc.SampleDesc.Quality = 0;
+    picking_buffer_desc.Usage = D3D11_USAGE_DEFAULT;
+    picking_buffer_desc.BindFlags = D3D11_BIND_RENDER_TARGET;
+    picking_buffer_desc.CPUAccessFlags = 0;
+    picking_buffer_desc.MiscFlags = 0;
+    directx->device->CreateTexture2D(&picking_buffer_desc, 0, &directx->picking_buffer);
+    
+    HRESULT create_view0_hr = directx->device->CreateRenderTargetView(directx->back_buffer, 0, &directx->render_target_views[0]);
+    if(FAILED(create_view0_hr)) {
+        LOG_ERROR("ERROR", "Cannot create render target view for back buffer");
         return false;
     }
-    D3D11_TEXTURE2D_DESC back_buffer_desc;
-    back_buffer->GetDesc(&back_buffer_desc);
-    ivec2 back_buffer_dim = ivec2(back_buffer_desc.Width, back_buffer_desc.Height);
-    back_buffer->Release();
+    HRESULT create_view1_hr = directx->device->CreateRenderTargetView(directx->picking_buffer, 0, &directx->render_target_views[1]);
+    if(FAILED(create_view1_hr)) {
+        LOG_ERROR("ERROR", "Cannot create render target view for picking buffer");
+        return false;
+    }
     
-    // load shaders
     ID3DBlob *vs_blob = (ID3DBlob *)malloc(sizeof(*vs_blob));
     ID3DBlob *gs_blob = (ID3DBlob *)malloc(sizeof(*gs_blob));
     ID3DBlob *ps_blob = (ID3DBlob *)malloc(sizeof(*ps_blob));
@@ -554,6 +572,8 @@ bool init_D3D(HWND window, D3D_RESOURCES *directx) {
             return false;
         }
     }
+
+    directx->picking_data = (void *)calloc(back_buffer_dim.x * back_buffer_dim.y, sizeof(u32));
     
     return true;
 }
@@ -562,7 +582,10 @@ void clean_D3D(D3D_RESOURCES *directx) {
     directx->device->Release();
     directx->immediate_context->Release();
     directx->swap_chain->Release();
-    directx->render_target->Release();
+    directx->back_buffer->Release();
+    directx->picking_buffer->Release();
+    directx->render_target_views[0]->Release();
+    directx->render_target_views[1]->Release();
     directx->vertex_shader->Release();
     directx->geometry_shader->Release();
     directx->pixel_shader->Release();
@@ -570,4 +593,50 @@ void clean_D3D(D3D_RESOURCES *directx) {
     directx->rasterizer_state->Release();
     directx->depth_stencil_texture->Release();
     directx->depth_stencil_view->Release();
+    delete directx->picking_data;
+}
+
+bool read_ID3D11Texture2D(void *memory, ID3D11Texture2D *texture, ID3D11Device *device, ID3D11DeviceContext *device_context) {
+
+    D3D11_TEXTURE2D_DESC texture_desc;
+    texture->GetDesc(&texture_desc);
+    
+    ID3D11Texture2D *staging_texture;
+    D3D11_TEXTURE2D_DESC staging_texture_desc = {};
+    staging_texture_desc.Width = texture_desc.Width;
+    staging_texture_desc.Height = texture_desc.Height;
+    staging_texture_desc.MipLevels = 1;
+    staging_texture_desc.ArraySize = 1;
+    staging_texture_desc.Format = texture_desc.Format;
+    staging_texture_desc.SampleDesc.Count = 1;
+    staging_texture_desc.SampleDesc.Quality = 0;
+    staging_texture_desc.Usage = D3D11_USAGE_STAGING;
+    staging_texture_desc.BindFlags = 0;
+    staging_texture_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    staging_texture_desc.MiscFlags = 0;
+    
+    HRESULT create_texture_hr = device->CreateTexture2D(&staging_texture_desc, 0, &staging_texture);
+    if(FAILED(create_texture_hr)) {
+        LOG_ERROR("Error", "Cannot create staging texture when extracting pixels from back buffer");
+        return false;
+    }
+
+    D3D11_BOX source_region;
+    source_region.left = 0;
+    source_region.top = 0;
+    source_region.right = texture_desc.Width;
+    source_region.bottom = texture_desc.Height;
+    source_region.front = 0;
+    source_region.back = 0;
+    device_context->CopySubresourceRegion(staging_texture, 0, 0, 0, 0, texture, 0, &source_region);
+
+    D3D11_MAPPED_SUBRESOURCE mapped_subresource;
+    device_context->Map(staging_texture, 0, D3D11_MAP_READ, 0, &mapped_subresource);
+    
+    memcpy(memory, mapped_subresource.pData, sizeof(memory));
+    
+    device_context->Unmap(staging_texture, 0);
+    staging_texture->Release();
+    
+    return true;
 }

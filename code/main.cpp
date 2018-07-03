@@ -6,11 +6,10 @@
 #include <atlstr.h>
 /*
   TODO:
-  Make sure MSAA can be configured properly on any machine (quality/sample count)
+  Fix picking (use a texture rather than ray tracing) *IP* NOTE: possibly use the same renderer with two render targets?
   Entity transform/rotation
-  Configure imgui
+  Configure imgui *IP*
   Textures
-  Fix picking (use a texture rather than ray tracing)
 */
 
 #include <windows.h>
@@ -72,7 +71,6 @@ static bool global_is_running;
 static INPUT_STATE global_input = {};
 
 #include "renderer.cpp"
-#include "picking_renderer.cpp"
 #include "editor.cpp"
 #include "file_loader.cpp"
 #include "game.cpp"
@@ -320,10 +318,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
             f32 FRAME_RATE = 60.0f;
             f32 FRAME_FREQUENCY = (1000.0f / FRAME_RATE);
-
+            
             D3D_RESOURCES *directx = (D3D_RESOURCES *)malloc(sizeof(*directx));
-            PICKING_D3D_RESOURCES *directx_picking = (PICKING_D3D_RESOURCES *)malloc(sizeof(*directx_picking));     
-            if(init_D3D(window, directx) && init_picking_D3D(window, directx_picking)) {
+            if(init_D3D(window, directx)) {
                 global_is_running = true;
                 GameState game_state = {};
                 
@@ -333,6 +330,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 if(model.vertex_attributes.size == 0) { global_is_running = false; }
                 Entity test_entity = {};
                 test_entity.model = model;
+                test_entity.ID = 4;
                 game_state.entities.push_back(test_entity);
                 /////////////////////////                
 
@@ -396,7 +394,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                             
                             //entity picking
                             if(global_input.LEFT_CLICKED) {
-                                picked_entity = editor::get_picked_entity_index(game_state.camera, vec3(0.0f, 1.0f, 0.0f), global_input.CURRENT_POS, client_dim, 45.0f, 16.0f/9.0f, game_state.entities);
+                                if(!read_ID3D11Texture2D(directx->picking_data, directx->picking_buffer,
+                                                         directx->device, directx->immediate_context)) break;
+                                picked_entity = *((int *)directx->picking_data + (global_input.CURRENT_POS.x * global_input.CURRENT_POS.y));
                                 for(int i = 0; i < game_state.entities.size; i++) {
                                     game_state.entities[i].selected = false; 
                                     if(picked_entity != -1)
@@ -404,7 +404,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                                 }
                             }
                         }
-
+                        
                         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
                         if(picked_entity != -1) {
                             ImGui::End();
@@ -460,10 +460,13 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     }
                     
                     if(!draw_frame(directx, game_state.entities, game_state.lights, game_state.camera)) break;
+                    if(!read_ID3D11Texture2D(directx->picking_data, directx->picking_buffer,
+                                             directx->device, directx->immediate_context)) break;
+                                                    
                     ImGui::Render();
                     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-                    DXGI_PRESENT_PARAMETERS present_parameters = { 0, NULL, NULL, NULL};
+                    DXGI_PRESENT_PARAMETERS present_parameters = { 0, NULL, NULL, NULL}; // TODO: fix fullscreen
                     HRESULT present_hr = directx->swap_chain->Present1(0, 0, &present_parameters);
                     if(FAILED(present_hr)) {
                         LOG_ERROR("ERROR", "Unable to swap buffers");
@@ -487,7 +490,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 ImGui::DestroyContext();
             }
             clean_D3D(directx);
-            clean_picking_D3D(directx_picking);
         }
     }
 }
