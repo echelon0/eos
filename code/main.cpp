@@ -343,8 +343,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 imguiIO.DisplaySize.x = (f32)client_dim.x;
                 imguiIO.DisplaySize.y = (f32)client_dim.y;
                 
-                ImGuiWindowFlags general_imgui_window_flags;
-                general_imgui_window_flags |= ImGuiWindowFlags_AlwaysAutoResize;
+                ImGuiWindowFlags general_imgui_window_flags = 0;
+                //general_imgui_window_flags |= ImGuiWindowFlags_AlwaysAutoResize;
                 
                 //editor variables
                 int picked_entity = -1;
@@ -396,9 +396,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                             if(global_input.LEFT_CLICKED) {
                                 if(!read_ID3D11Texture2D(directx->picking_data, directx->picking_buffer,
                                                          directx->device, directx->immediate_context)) break;
-                                picked_entity = *((int *)directx->picking_data + (global_input.CURRENT_POS.x * global_input.CURRENT_POS.y));
+                                int byte_offset = (global_input.CURRENT_POS.y * directx->picking_data.RowPitch) + (global_input.CURRENT_POS.x * sizeof(int));
+                                picked_entity = *((int *)directx->picking_data.pData + (byte_offset / sizeof(int)));
                                 for(int i = 0; i < game_state.entities.size; i++) {
-                                    game_state.entities[i].selected = false; 
+                                    game_state.entities[i].selected = false;
                                     if(picked_entity != -1)
                                         game_state.entities[picked_entity].selected = true;
                                 }
@@ -460,9 +461,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     }
                     
                     if(!draw_frame(directx, game_state.entities, game_state.lights, game_state.camera)) break;
-                    if(!read_ID3D11Texture2D(directx->picking_data, directx->picking_buffer,
-                                             directx->device, directx->immediate_context)) break;
-                                                    
+                    
                     ImGui::Render();
                     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 

@@ -4,7 +4,7 @@ cbuffer ShaderConstants : register(b0) {
     matrix view_matrix;
     matrix projection_matrix;
     bool wire_frame_on;
-    uint entity_id;
+    int entity_id;
     uint padding1;
     uint padding2;
 };

@@ -159,7 +159,7 @@ struct D3D_RESOURCES {
     ID3D11RasterizerState *rasterizer_state;
     ID3D11Texture2D *depth_stencil_texture;
     ID3D11DepthStencilView *depth_stencil_view;
-    void *picking_data;
+    D3D11_MAPPED_SUBRESOURCE picking_data;
     int vertex_count;
 };
 
@@ -573,8 +573,6 @@ bool init_D3D(HWND window, D3D_RESOURCES *directx) {
         }
     }
 
-    directx->picking_data = (void *)calloc(back_buffer_dim.x * back_buffer_dim.y, sizeof(u32));
-    
     return true;
 }
 
@@ -593,10 +591,9 @@ void clean_D3D(D3D_RESOURCES *directx) {
     directx->rasterizer_state->Release();
     directx->depth_stencil_texture->Release();
     directx->depth_stencil_view->Release();
-    delete directx->picking_data;
 }
 
-bool read_ID3D11Texture2D(void *memory, ID3D11Texture2D *texture, ID3D11Device *device, ID3D11DeviceContext *device_context) {
+bool read_ID3D11Texture2D(D3D11_MAPPED_SUBRESOURCE &mapped_subresource, ID3D11Texture2D *texture, ID3D11Device *device, ID3D11DeviceContext *device_context) {
 
     D3D11_TEXTURE2D_DESC texture_desc;
     texture->GetDesc(&texture_desc);
@@ -621,21 +618,11 @@ bool read_ID3D11Texture2D(void *memory, ID3D11Texture2D *texture, ID3D11Device *
         return false;
     }
 
-    D3D11_BOX source_region;
-    source_region.left = 0;
-    source_region.top = 0;
-    source_region.right = texture_desc.Width;
-    source_region.bottom = texture_desc.Height;
-    source_region.front = 0;
-    source_region.back = 0;
-    device_context->CopySubresourceRegion(staging_texture, 0, 0, 0, 0, texture, 0, &source_region);
-
-    D3D11_MAPPED_SUBRESOURCE mapped_subresource;
+    device_context->CopyResource(staging_texture, texture);
+    
     device_context->Map(staging_texture, 0, D3D11_MAP_READ, 0, &mapped_subresource);
-    
-    memcpy(memory, mapped_subresource.pData, sizeof(memory));
-    
     device_context->Unmap(staging_texture, 0);
+    
     staging_texture->Release();
     
     return true;
