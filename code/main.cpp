@@ -2,6 +2,7 @@
 #define f32 float
 #define u32 unsigned int
 #define LOG_ERROR(Title, Message) MessageBoxA(0, Message, Title, MB_OK|MB_ICONERROR)
+#pragma warning(disable : 4701) //disable - warning: potentially uninitialized local variable used.
 
 #include <atlstr.h>
 /*
@@ -332,6 +333,13 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 test_entity.model = model;
                 test_entity.ID = 4;
                 game_state.entities.push_back(test_entity);
+
+                //test light
+                editor::add_light(game_state.lights, game_state.num_lights,
+                                  game_state.entities, test_entity.ID,
+                                  DIRECTIONAL_LIGHT, vec3(0.0f, 0.0f, 0.0f),
+                                  100.0f, vec3(1.0f, 1.0f, 1.0f),
+                                  vec3(0.5f, -1.0f, 0.0f), 0.0f);
                 /////////////////////////                
 
                 //imgui setup
@@ -393,7 +401,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                             game_paused = true;
                             
                             //entity picking
-                            if(global_input.LEFT_CLICKED) {
+                            if(global_input.LEFT_CLICKED && !ImGui::IsAnyItemHovered()) {
                                 if(!read_ID3D11Texture2D(directx->picking_data, directx->picking_buffer,
                                                          directx->device, directx->immediate_context)) break;
                                 int byte_offset = (global_input.CURRENT_POS.y * directx->picking_data.RowPitch) + (global_input.CURRENT_POS.x * sizeof(int));
@@ -410,6 +418,22 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         if(picked_entity != -1) {
                             ImGui::End();
                             ImGui::Begin(game_state.entities[picked_entity].model.str_name, 0, general_imgui_window_flags);
+
+                            //list of lights belonging to the selected entity
+                            int light_list_curr;
+                            int total_lights = 0;
+                            char *possible_lights[3];
+                            possible_lights[0] = "DIRECTIONAL LIGHT";
+                            possible_lights[1] = "POINT LIGHT";
+                            possible_lights[2] = "SPOTLIGHT";
+                            char *light_list_items[MAX_LIGHTS];
+                            for(int i = 0; i < MAX_LIGHTS; i++) {
+                                if(game_state.lights[i].entity_ID == (u32)picked_entity) {
+                                    light_list_items[total_lights++] = possible_lights[game_state.lights[i].light_type];
+                                }
+                            }
+                            ImGui::ListBox("list", &light_list_curr, light_list_items, total_lights);
+                            
                             if(light_type == -1) {
                                 ImGui::Text("Add light:");
                                 ImGui::SameLine();
@@ -429,10 +453,13 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                                 } else if(light_type == SPOTLIGHT){
                                     ImGui::Text("Add light: Spotlight");
                                 }
+
+                                f32 pos_offset[3];
                                 f32 intensity;
                                 f32 color[3];
                                 f32 direction[3];
                                 f32 cone_angle;
+                                
                                 ImGui::SliderFloat("intensity", &intensity, 0.0f, 1.0f);
                                 ImGui::ColorEdit3("color", color);
                                 if(light_type != POINT_LIGHT) {
@@ -441,8 +468,16 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                                 if(light_type == SPOTLIGHT) {
                                     ImGui::SliderFloat("cone angle", &cone_angle, 0.0f, 1.0f);
                                 }
+                                if(light_type != DIRECTIONAL_LIGHT) {
+                                    ImGui::SliderFloat3("position offset", pos_offset, 0.0f, 150.0f);                               
+                                }
+                                
                                 if(ImGui::Button("Add light")) {
-                                    editor::add_light(game_state.lights, game_state.num_lights, game_state.entities, picked_entity, DIRECTIONAL_LIGHT);
+                                    editor::add_light(game_state.lights, game_state.num_lights,
+                                                      game_state.entities, picked_entity,
+                                                      light_type, vec3(pos_offset[0], pos_offset[1], pos_offset[2]),
+                                                      intensity, vec3(color[0], color[1], color[2]),
+                                                      vec3(direction[0], direction[1], direction[2]), cone_angle);
                                     light_type = -1;
                                 }
                                 ImGui::SameLine();

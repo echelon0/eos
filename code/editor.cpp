@@ -1,7 +1,12 @@
 
 namespace editor {
 
-    bool add_light(Light lights[], int &num_lights, Array<Entity> entities,  u32 entity_ID, u32 light_type) {
+    bool add_light(Light lights[], int &num_lights,
+                   Array<Entity> entities,  u32 entity_ID,
+                   u32 light_type, vec3 pos_offset,
+                   f32 intensity, vec3 color,
+                   vec3 direction, f32 cone_angle) {
+        
         //input check
         if(num_lights == MAX_LIGHTS) {
             LOG_ERROR("ERROR", "Maximum number of lights exceeded when attempting to create light source.");
@@ -27,13 +32,10 @@ namespace editor {
         
         Light new_light = {};
         new_light.light_type = light_type;
-        new_light.position = entities[index].model.vertex_attributes[0].position; //TODO: CHANGE THIS TO ENTITY'S CENTER POSITION
-        new_light.color = vec3(201.0f / 255.0f, 226.0f / 255.0f, 1.0f);
-        new_light.direction = vec3(0.5f, -0.5f, -0.5f);
-        new_light.cone_angle = 0.2f;
-        new_light.position.y += 100.0f;
-        new_light.position.x += 0.0f;
-        new_light.position.z += 0.0f;
+        new_light.position = entities[index].model.vertex_attributes[0].position + pos_offset; //TODO: CHANGE THIS TO ENTITY'S CENTER POSITION
+        new_light.color = color;
+        new_light.direction = direction;
+        new_light.cone_angle = cone_angle;
         new_light.enabled = true;
         
         lights[num_lights++] = new_light;
@@ -41,7 +43,7 @@ namespace editor {
         return true;
     }
     
-    //NOTE: Use a hardware accelerated picking method such as rendering entity IDs to a seperate buffer for non-editing use
+    //NOTE: This function is depricated, read picking data from D3D_RESOURCES struct directly.
     int get_picked_entity_index(Camera camera, vec3 up, ivec2 point_in_client, ivec2 client_dim, f32 FOV, f32 aspect_ratio, Array<Entity> entities) {
         vec2 normalized_client_point = vec2(((f32)point_in_client.x / (f32)client_dim.x) * 2.0f - 1.0f, //NOTE: [-1, 1]
                                             ((f32)point_in_client.y / (f32)client_dim.y) * 2.0f - 1.0f);
