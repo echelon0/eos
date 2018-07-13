@@ -31,6 +31,7 @@ namespace editor {
         }
         
         Light new_light = {};
+        new_light.entity_ID = entity_ID;
         new_light.light_type = light_type;
         new_light.position = entities[index].model.vertex_attributes[0].position + pos_offset; //TODO: CHANGE THIS TO ENTITY'S CENTER POSITION
         new_light.color = color;

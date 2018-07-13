@@ -323,24 +323,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             D3D_RESOURCES *directx = (D3D_RESOURCES *)malloc(sizeof(*directx));
             if(init_D3D(window, directx)) {
                 global_is_running = true;
-                GameState game_state = {};
-                
-                //NOTE: TEST CODE for entity creation
-                StaticModel model;
-                model = load_obj("island.obj");
-                if(model.vertex_attributes.size == 0) { global_is_running = false; }
-                Entity test_entity = {};
-                test_entity.model = model;
-                test_entity.ID = 4;
-                game_state.entities.push_back(test_entity);
-
-                //test light
-                editor::add_light(game_state.lights, game_state.num_lights,
-                                  game_state.entities, test_entity.ID,
-                                  DIRECTIONAL_LIGHT, vec3(0.0f, 0.0f, 0.0f),
-                                  100.0f, vec3(1.0f, 1.0f, 1.0f),
-                                  vec3(0.5f, -1.0f, 0.0f), 0.0f);
-                /////////////////////////                
+                GameState game_state = {};                
 
                 //imgui setup
                 IMGUI_CHECKVERSION();
@@ -362,8 +345,28 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 bool initialized = false;
                 while(global_is_running) {
                     if(!initialized) {
+
+                        //test entity
+                        StaticModel model;
+                        model = load_obj("island.obj");
+                        if(model.vertex_attributes.size == 0) { global_is_running = false; }
+                        Entity test_entity = {};
+                        test_entity.model = model;
+                        test_entity.ID = 4;
+                        game_state.entities.push_back(test_entity);
+                        
                         set_vertex_buffer(directx, game_state.entities);
+                        init_game_state(&game_state);
                         init_grid(&game_state.grid, game_state.entities);
+                        
+                        //test light
+                        if(!editor::add_light(game_state.lights, game_state.num_lights,
+                                              game_state.entities, test_entity.ID,
+                                              DIRECTIONAL_LIGHT, vec3(0.0f, 0.0f, 0.0f),
+                                              0.5f, vec3(1.0f, 1.0f, 1.0f),
+                                              vec3(0.0f, -6.0f, -0.8f), 0.0f)) LOG_ERROR("S","SSSS");
+                
+                        /////////////////////////                
                         initialized = true;
                     }
                     

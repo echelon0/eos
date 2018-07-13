@@ -195,7 +195,7 @@ bool set_vertex_buffer(D3D_RESOURCES *directx, Array<Entity> &entities) {
     return true;
 }
 
-bool draw_frame(D3D_RESOURCES *directx, Array<Entity> &entities, Light lights[], Camera camera) {
+bool draw_frame(D3D_RESOURCES *directx, Array<Entity> &entities, Light *lights, Camera camera) {
 
     FLOAT background_color[] = {0.788f, 0.867f, 1.0f, 1.0f};
     FLOAT picking_buffer_background[] = {-1.0f, -1.0f, -1.0f, -1.0f};
