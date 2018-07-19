@@ -7,10 +7,12 @@
 #include <atlstr.h>
 /*
   TODO:
-  Fix picking (use a texture rather than ray tracing) *IP* NOTE: possibly use the same renderer with two render targets?
   Entity transform/rotation
-  Configure imgui *IP*
+    - Implement quaternion functions
+    - Add rotation information (quaternion) and world position to entity struct
+    - Create model-to-world view matrix in the draw function and send it to the GPU
   Textures
+  Integrate procedural effects to run on specific materials in the shader
 */
 
 #include <windows.h>
