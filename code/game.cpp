@@ -15,14 +15,14 @@ struct GameState {
     int num_lights;
     Grid grid;
     Camera camera;
-    f32 camera_target_y;
+    f32 player_target_y;
     vec2 current_cam_rotation;
     vec2 target_cam_rotation;
     Player player;
 };
 
 void init_game_state(GameState *game_state) {
-    game_state->camera.position = vec3(0.0f, 100.0f, 0.0f);
+    game_state->camera.position = vec3(0.0f, 20.0f, 0.0f);
     game_state->camera.direction = vec3(0.0f, 0.0f, 1.0f);
     game_state->camera.up = vec3(0.0f, 1.0f, 0.0f);
     
@@ -100,34 +100,35 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
         game_state->camera.rotate(game_state->current_cam_rotation.y, CAMERA_RIGHT);
     }
 
-    { //adjust camera above above the ground
-        f32 camera_height = 1.25f;
+
+    { //adjust player above above the ground
+        f32 player_height = 1.25f;
         f32 forward_push = 0.0f;
         
-        vec3 adjusted_camera_position = game_state->camera.position + game_state->camera.direction * forward_push + vec3(0.0f, 0.01f, 0.0f);
-        int cell_index = get_cell_index(&game_state->grid, find_appropriate_cell(game_state->grid.cell_radius, vec2(adjusted_camera_position.x, adjusted_camera_position.z)));
+        vec3 adjusted_player_position = game_state->entities[0].world_pos;
+        int cell_index = get_cell_index(&game_state->grid, find_appropriate_cell(game_state->grid.cell_radius, vec2(game_state->entities[0].world_pos.x, game_state->entities[0].world_pos.z)));
         if(cell_index != -1) {
             f32 t = 999999.0f;
             for(int i = 0; i < game_state->grid.cells[cell_index].vertex_attributes.size; i+=3) {
                 vec3 intersection;
-                if(ray_intersects_triangle(adjusted_camera_position, vec3(0.0f, -1.0f, 0.0f),
+                if(ray_intersects_triangle(game_state->entities[0].world_pos, vec3(0.0f, -1.0f, 0.0f),
                                            game_state->grid.cells[cell_index].vertex_attributes[i + 0].position,
                                            game_state->grid.cells[cell_index].vertex_attributes[i + 1].position,
                                            game_state->grid.cells[cell_index].vertex_attributes[i + 2].position,
                                            intersection)) {
-                    vec3 ro_to_intersection = intersection - game_state->camera.position;
+                    vec3 ro_to_intersection = intersection - game_state->entities[0].world_pos;
                     if((abs(-ro_to_intersection.y) < t) && (ro_to_intersection.y < 0)) {
                         t = -ro_to_intersection.y;
                     }
                 }
             }
             if(t != 999999.0f) {
-                game_state->camera_target_y = game_state->camera.position.y - (t - camera_height);
+                game_state->player_target_y = game_state->entities[0].world_pos.y - (t - player_height);
             }
         }
 
-        if((game_state->camera.position.y != game_state->camera_target_y)) {
-            game_state->camera.position.y = lerp(game_state->camera.position.y, game_state->camera_target_y, 0.2f);
+        if((game_state->entities[0].world_pos.y != game_state->player_target_y)) {
+            game_state->entities[0].world_pos.y = lerp(game_state->entities[0].world_pos.y, game_state->player_target_y, 0.2f);
         }
     }   
 

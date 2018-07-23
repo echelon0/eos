@@ -9,7 +9,6 @@ struct Grid {
     Array<Cell> cells;
 };
 
-
 int get_cell_index(Grid *grid, vec2 cell_center) {
     for(int i = 0; i < grid->cells.size; i++) {
         if(grid->cells[i].center == cell_center) {
@@ -35,20 +34,27 @@ vec2 find_appropriate_cell(f32 cell_radius, vec2 position) { //expects a positio
 }
 
 void init_grid(Grid *grid, Array<Entity> &entities) {
+    int iter_count = 0;
     grid->cell_radius = 2.0f; //TODO: Make this value changable with imgui
+    VertexAttribute offset_vertex_attributes[3];
     for(int entity_index = 0; entity_index < entities.size; entity_index++) {
         for(int i = 0; i < entities[entity_index].model.vertex_attributes.size; i+=3) {
 
             //find bouding box of triangle
             //NOTE: y coordinate in vec2 represents a z coordinate in world space
-            vec2 min = vec2(entities[entity_index].model.vertex_attributes[i + 0].position.x, entities[entity_index].model.vertex_attributes[i + 0].position.z);
-            vec2 max = vec2(entities[entity_index].model.vertex_attributes[i + 0].position.x, entities[entity_index].model.vertex_attributes[i + 0].position.z);
-            for (int v = i; v < i + 3; v++) {
-                if(entities[entity_index].model.vertex_attributes[v].position.x < min.x) min.x = entities[entity_index].model.vertex_attributes[v].position.x;
-                if(entities[entity_index].model.vertex_attributes[v].position.z < min.y) min.y = entities[entity_index].model.vertex_attributes[v].position.z;
+            for(int index = 0; index < 3; index++) {
+                offset_vertex_attributes[index] = entities[entity_index].model.vertex_attributes[i + index];
+                offset_vertex_attributes[index].position += entities[entity_index].world_pos;
+            }
+            
+            vec2 min = vec2(offset_vertex_attributes[0].position.x, offset_vertex_attributes[0].position.z);
+            vec2 max = min;
+            for (int index = 0; index < 3; index++) {
+                if(offset_vertex_attributes[index].position.x < min.x) min.x = offset_vertex_attributes[index].position.x;
+                if(offset_vertex_attributes[index].position.z < min.y) min.y = offset_vertex_attributes[index].position.z;
                 
-                if(entities[entity_index].model.vertex_attributes[v].position.x > max.x) max.x = entities[entity_index].model.vertex_attributes[v].position.x;
-                if(entities[entity_index].model.vertex_attributes[v].position.z > max.y) max.y = entities[entity_index].model.vertex_attributes[v].position.z;
+                if(offset_vertex_attributes[index].position.x > max.x) max.x = offset_vertex_attributes[index].position.x;
+                if(offset_vertex_attributes[index].position.z > max.y) max.y = offset_vertex_attributes[index].position.z;
             }
             
             vec2 min_cell_center = find_appropriate_cell(grid->cell_radius, vec2(min.x, min.y));
@@ -60,21 +66,25 @@ void init_grid(Grid *grid, Array<Entity> &entities) {
                         if(possible_cell_index == -1) {
                             Cell new_cell;
                             new_cell.center = vec2(x, z);
-                            new_cell.vertex_attributes.push_back(entities[entity_index].model.vertex_attributes[i + 0]);
-                            new_cell.vertex_attributes.push_back(entities[entity_index].model.vertex_attributes[i + 1]);
-                            new_cell.vertex_attributes.push_back(entities[entity_index].model.vertex_attributes[i + 2]);
+                            new_cell.vertex_attributes.push_back(offset_vertex_attributes[0]);
+                            new_cell.vertex_attributes.push_back(offset_vertex_attributes[1]);
+                            new_cell.vertex_attributes.push_back(offset_vertex_attributes[2]);
                             grid->cells.push_back(new_cell);
 
                         } else {
-                            grid->cells[possible_cell_index].vertex_attributes.push_back(entities[entity_index].model.vertex_attributes[i + 0]);
-                            grid->cells[possible_cell_index].vertex_attributes.push_back(entities[entity_index].model.vertex_attributes[i + 1]);
-                            grid->cells[possible_cell_index].vertex_attributes.push_back(entities[entity_index].model.vertex_attributes[i + 2]);                            
+                            grid->cells[possible_cell_index].vertex_attributes.push_back(offset_vertex_attributes[0]);
+                            grid->cells[possible_cell_index].vertex_attributes.push_back(offset_vertex_attributes[1]);
+                            grid->cells[possible_cell_index].vertex_attributes.push_back(offset_vertex_attributes[2]);                            
                         }
                 }
             }
             
+            iter_count++;
+            if(iter_count > entities[0].model.vertex_attributes.size + entities[1].model.vertex_attributes.size + 10) {
+                LOG_ERROR("ERROR", "Exceeded expected iteration count");
+                break;
+            }
         }
     }
-    
 }
 

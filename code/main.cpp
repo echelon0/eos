@@ -348,14 +348,24 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 while(global_is_running) {
                     if(!initialized) {
 
-                        //test entity
                         StaticModel model;
+                        Entity test_entity = {};
+                        
+                        //player entity
+                        model = load_obj("cube.obj");
+                        if(model.vertex_attributes.size == 0) { global_is_running = false; }
+                        test_entity.model = model;
+                        test_entity.ID = 0;
+                        game_state.entities.push_back(test_entity);
+                        game_state.entities[0].world_pos.y = 100.0f;
+                        
+                        //terrain entity
                         model = load_obj("island.obj");
                         if(model.vertex_attributes.size == 0) { global_is_running = false; }
-                        Entity test_entity = {};
                         test_entity.model = model;
-                        test_entity.ID = 4;
+                        test_entity.ID = 1;
                         game_state.entities.push_back(test_entity);
+                        game_state.entities[1].world_pos.z = 100.0f;
                         
                         set_vertex_buffer(directx, game_state.entities);
                         init_game_state(&game_state);
@@ -368,10 +378,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                                               0.5f, vec3(1.0f, 1.0f, 1.0f),
                                               vec3(0.0f, -6.0f, -0.8f), 0.0f)) LOG_ERROR("S","SSSS");
                 
-                        /////////////////////////                
+                        /////////////////////////
+
                         initialized = true;
                     }
-                    
                     LARGE_INTEGER begin_count;
                     QueryPerformanceCounter(&begin_count);
 

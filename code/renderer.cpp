@@ -4,6 +4,14 @@ struct VertexAttribute {
     vec3 normal;
     vec2 texcoord;
     u32 entity_ID;
+
+    VertexAttribute operator = (VertexAttribute rhs) {
+        this->position = rhs.position;
+        this->normal = rhs.normal;
+        this->texcoord = rhs.texcoord;
+        this->entity_ID = rhs.entity_ID;
+        return *this;
+    }
 };
 
 struct Material {
@@ -41,6 +49,8 @@ struct Light {
 struct Entity {
     unsigned int ID;
     StaticModel model;
+    vec3 world_pos;
+    quat rotation;
     bool selected; //solid wireframe on/off
 };
 
@@ -107,7 +117,7 @@ struct Camera {
 };
 
 struct ShaderConstants {
-    mat44 world_matrix;
+    mat44 model_matrix;
     mat44 view_matrix;
     mat44 projection_matrix;
     bool wire_frame_on;
@@ -278,7 +288,7 @@ bool draw_frame(D3D_RESOURCES *directx, Array<Entity> &entities, Light *lights, 
     int vertex_draw_offset = 0;    
     for(int i = 0; i < entities.size; i++) {
         //vertex constant buffer
-        constants.world_matrix = make_scaling_matrix(1.0f, 1.0f, 1.0f, 1.0f); // NOTE(Alex): not currently used
+        constants.model_matrix = model_transform(entities[i].world_pos, entities[i].rotation);
         constants.wire_frame_on = entities[i].selected;
         constants.entity_id = entities[i].ID;
         

@@ -233,6 +233,14 @@ struct mat44 {
     }
 };
 
+struct quat {
+    float x;
+    float y;
+    float z;
+    float w;
+
+};
+
 inline ivec2
 operator - (ivec2 lhs, ivec2 rhs) {
     ivec2 result;
@@ -645,6 +653,67 @@ transpose(mat44 matrix) {
     }
     return result;
 }
+
+inline quat
+operator * (quat lhs, quat rhs) {
+    quat result;
+    vec3 complex1 = vec3(lhs.x, lhs.y, lhs.z);
+    vec3 complex2 = vec3(rhs.x, rhs.y, rhs.z);
+    vec3 complex = (complex1 * rhs.w) + (complex2 * lhs.w) + cross(complex1, complex2);
+
+    result.x = complex.x;
+    result.y = complex.y;
+    result.z = complex.z;
+    result.w = (lhs.w * rhs.w) - dot(complex1, complex2);
+    return result;
+}
+
+static mat44
+rotation_matrix(quat rotation) {
+    return mat44(1.0f - 2.0f * rotation.y*rotation.y - 2.0f * rotation.z*rotation.z,
+                 2.0f * rotation.x * rotation.y - 2.0f * rotation.z * rotation.w,
+                 2.0f * rotation.x * rotation.z + 2.0f * rotation.y * rotation.w,
+                 0.0f,
+                 
+                 2.0f * rotation.x * rotation.y + 2.0f * rotation.z * rotation.w,
+                 1.0f - 2.0f * rotation.x*rotation.x - 2.0f * rotation.z*rotation.z,
+                 2.0f * rotation.y * rotation.z - 2.0f * rotation.x * rotation.w,
+                 0.0f,
+                 
+                 2.0f * rotation.x * rotation.z - 2.0f * rotation.y * rotation.w,
+                 2.0f * rotation.y * rotation.z - 2.0f * rotation.x * rotation.w,
+                 1.0f - 2.0f * rotation.x*rotation.x - 2.0f * rotation.y*rotation.y,
+                 0.0f,
+
+                 0.0f, 0.0f, 0.0f, 1.0f);
+}
+
+static mat44
+model_transform(vec3 world_pos, quat rotation) {
+    mat44 translation = mat44(1.0f, 0.0f, 0.0f, world_pos.x,
+                              0.0f, 1.0f, 0.0f, world_pos.y,
+                              0.0f, 0.0f, 1.0f, world_pos.z,
+                              0.0f, 0.0f, 0.0f, 1.0f);
+
+    mat44 rot = mat44(1.0f - 2.0f * rotation.y*rotation.y - 2.0f * rotation.z*rotation.z,
+                      2.0f * rotation.x * rotation.y - 2.0f * rotation.z * rotation.w,
+                      2.0f * rotation.x * rotation.z + 2.0f * rotation.y * rotation.w,
+                      0.0f,
+                 
+                      2.0f * rotation.x * rotation.y + 2.0f * rotation.z * rotation.w,
+                      1.0f - 2.0f * rotation.x*rotation.x - 2.0f * rotation.z*rotation.z,
+                      2.0f * rotation.y * rotation.z - 2.0f * rotation.x * rotation.w,
+                      0.0f,
+                 
+                      2.0f * rotation.x * rotation.z - 2.0f * rotation.y * rotation.w,
+                      2.0f * rotation.y * rotation.z - 2.0f * rotation.x * rotation.w,
+                      1.0f - 2.0f * rotation.x*rotation.x - 2.0f * rotation.y*rotation.y,
+                      0.0f,
+
+                      0.0f, 0.0f, 0.0f, 1.0f);
+
+    return translation * rot;
+};
 
 static mat44
 view_transform(vec3 position, vec3 direction, vec3 up) {

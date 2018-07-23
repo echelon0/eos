@@ -1,6 +1,6 @@
 
 cbuffer ShaderConstants : register(b0) {
-    matrix world_matrix;
+    matrix model_matrix;
     matrix view_matrix;
     matrix projection_matrix;
     bool wire_frame_on;
@@ -72,12 +72,17 @@ struct PS_OUT {
 
 VS_OUT vs_main(VS_IN input) {
     VS_OUT output;
+    
     output.position = float4(input.position.xyz, 1.0f);
+    output.world_space_pos = output.position;
+    
+    output.position = mul(output.position, model_matrix);    
     output.position = mul(output.position, view_matrix);
     output.position = mul(output.position, transpose(projection_matrix));
-    output.world_space_pos = float4(input.position.xyz, 1.0f); //////
+
     output.normal = float3(input.normal.x, input.normal.y, input.normal.z);
     output.normal = normalize(output.normal);
+    
     output.texcoord = input.texcoord;
     output.wire_frame_on = wire_frame_on;
     output.entity_id = entity_id;
