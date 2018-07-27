@@ -35,7 +35,8 @@
 struct INPUT_STATE {
     ivec2 client_center;
     bool ESC_KEY;
-    
+
+    bool MOVEMENT_KEY_DOWN;
     bool W_KEY;
     bool A_KEY;
     bool S_KEY;
@@ -229,6 +230,10 @@ LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPara
 }
 
 void process_input() {
+    if(global_input.W_KEY || global_input.A_KEY || global_input.S_KEY || global_input.D_KEY) {
+        global_input.MOVEMENT_KEY_DOWN = true;
+    }
+    
     if(global_input.SET_DRAG_VECTOR) {
         global_input.PER_FRAME_DRAG_VECTOR = global_input.CURRENT_POS - global_input.client_center;
         global_input.PER_FRAME_DRAG_VECTOR_PERCENT = vec2((f32)global_input.PER_FRAME_DRAG_VECTOR.x / (f32)GetSystemMetrics(SM_CXSCREEN),
@@ -256,6 +261,7 @@ void process_input() {
 }
 
 void reset_input() {
+    global_input.MOVEMENT_KEY_DOWN = false;
     global_input.SET_DRAG_VECTOR = false;
     global_input.PER_FRAME_DRAG_VECTOR = ivec2(0, 0);
     global_input.PER_FRAME_DRAG_VECTOR_PERCENT = vec2(0.0f, 0.0f);
@@ -354,7 +360,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         Entity test_entity = {};
                         
                         //player entity
-                        model = load_obj("cube.obj");
+                        model = load_obj("temp_player.obj");
                         if(model.vertex_attributes.size == 0) { global_is_running = false; }
                         test_entity.model = model;
                         test_entity.ID = 0;
@@ -362,11 +368,12 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         game_state.entities[0].world_pos.y = 100.0f;
                         
                         //terrain entity
-                        model = load_obj("island.obj");
+                        model = load_obj("temp_ground.obj");
                         if(model.vertex_attributes.size == 0) { global_is_running = false; }
                         test_entity.model = model;
                         test_entity.ID = 1;
                         game_state.entities.push_back(test_entity);
+                        game_state.entities[1].world_pos.y -= 15.0f;
                         
                         set_vertex_buffer(directx, game_state.entities);
                         init_game_state(&game_state);
@@ -434,6 +441,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         ImGui::Text("camera_position = (%.2f, %.2f, %.2f)", game_state.camera.position.x, game_state.camera.position.y, game_state.camera.position.z);
                         ImGui::Text("camera_direction = (%.2f, %.2f, %.2f)", game_state.camera.direction.x, game_state.camera.direction.y, game_state.camera.direction.z);
                         ImGui::Text("player orientation = (%.2f, %.2f, %.2f, %.2f)", game_state.entities[0].orientation.x, game_state.entities[0].orientation.y, game_state.entities[0].orientation.z, game_state.entities[0].orientation.w);
+                        ImGui::Text("current rotation = %.2f", test_eulers.x);
                         if(picked_entity != -1) {
                             ImGui::End();
                             ImGui::Begin(game_state.entities[picked_entity].model.str_name, 0, general_imgui_window_flags);
@@ -512,16 +520,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
                     if(!game_paused) {
                         game_update(&game_state, directx);
-                        //TEST ROTATION
-                        quat target_orientation = quat(test_eulers);
-                        game_state.entities[0].orientation = target_orientation;
-                        test_eulers.x += 0.1f;
-                        if(test_eulers.x > 360.0f)
-                            test_eulers.x = 0.0f;
-                        if(test_eulers.y > 360.0f)
-                            test_eulers.y = 0.0f;
-                        if(test_eulers.z > 360.0f)
-                            test_eulers.z = 0.0f;
                     }
                     
                     if(!draw_frame(directx, game_state.entities, game_state.lights, game_state.camera)) break;

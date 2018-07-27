@@ -688,6 +688,64 @@ operator * (quat lhs, quat rhs) {
     return result;
 }
 
+inline quat
+operator * (float scalar, quat rhs) {
+    quat result;
+    result.x = scalar * rhs.x;
+    result.y = scalar * rhs.y;
+    result.z = scalar * rhs.z;
+    result.w = scalar * rhs.w;
+    return result;
+}
+
+inline quat
+operator * (quat lhs, float scalar) {
+    quat result;
+    result.x = lhs.x * scalar;
+    result.y = lhs.y * scalar;
+    result.z = lhs.z * scalar;
+    result.w = lhs.w * scalar;
+    return result;
+}
+
+inline quat
+operator / (quat lhs, float scalar) {
+    quat result;
+    result.x = lhs.x / scalar;
+    result.y = lhs.y / scalar;
+    result.z = lhs.z / scalar;
+    result.w = lhs.w / scalar;
+    return result;
+}
+
+inline quat
+operator + (quat lhs, quat rhs) {
+    quat result;
+    result.x = lhs.x + rhs.x;
+    result.y = lhs.y + rhs.y;
+    result.z = lhs.z + rhs.z;
+    result.w = lhs.w + rhs.w;
+    return result;
+}
+
+float dot(quat lhs, quat rhs) {
+    return(lhs.x*rhs.x + lhs.y*rhs.y + lhs.z*rhs.z + lhs.w*rhs.w);
+}
+
+inline float
+sign(float t) {
+    return (t < 0.0f)? -1.0f : 1.0f;
+}
+
+float magnitude(quat q) {
+    return (float)sqrt(q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w);
+}
+
+quat normalize(quat q) {
+    return q / magnitude(q);
+}
+
+
 static mat44
 rotation_matrix(quat rotation) {
     return mat44(1.0f - 2.0f * rotation.y*rotation.y - 2.0f * rotation.z*rotation.z,
@@ -769,17 +827,27 @@ perspective(float FOV, float aspect, float z_near, float z_far) {
 
 inline float
 lerp(float a, float b, float t) {
-    return t*b + (1-t)*a;
+    return t*b + (1.0f - t)*a;
 }
 
 inline vec2
 lerp(vec2 a, vec2 b, float t) {
-    return t*b + (1-t)*a;
+    return t*b + (1.0f - t)*a;
 }
 
 inline vec3
 lerp(vec3 a, vec3 b, float t) {
-    return t*b + (1-t)*a;
+    return t*b + (1.0f - t)*a;
+}
+
+inline quat
+lerp(quat a, quat b, float t) {
+    return normalize(t*b + (1.0f - t)*a);
+}
+
+inline quat
+shortest_lerp(quat a, quat b, float t) {
+    return normalize(sign(dot(a, b)) * (1.0f - t)*a + t*b);
 }
 
 inline bool

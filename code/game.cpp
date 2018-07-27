@@ -1,4 +1,9 @@
 
+#define RIGHT_EULER_ANGLE (-(f32)PI / 4.0f)
+#define DOWN_EULER_ANGLE (RIGHT_EULER_ANGLE + ((f32)PI / 2.0f))
+#define UP_EULER_ANGLE (RIGHT_EULER_ANGLE + ((f32)PI * (3.0f / 2.0f)))
+#define LEFT_EULER_ANGLE (RIGHT_EULER_ANGLE + (f32)PI)
+
 #include "grid.cpp"
 
 struct Player {
@@ -41,6 +46,7 @@ void init_game_state(GameState *game_state) {
 void game_update(GameState *game_state, D3D_RESOURCES *directx) {
     
     { //player movement
+        vec3 target_orientation_euler_angles = vec3();
         if(global_input.SHIFT_KEY) {
             game_state->player.target_speed = game_state->player.run_speed;
         } else {
@@ -48,29 +54,45 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
         }
         game_state->player.current_speed = lerp(game_state->player.current_speed, game_state->player.target_speed, 0.1f);
 
+        int num_keys_down = 0;
         f32 diagonal_speed_multiplier = 1.0f;
         if(global_input.W_KEY) {
+            num_keys_down++;
             if(global_input.A_KEY || global_input.D_KEY) {
                 diagonal_speed_multiplier = (f32)sin((f32)PI / 4.0f);
             }
             game_state->entities[0].world_pos += vec3(game_state->camera.direction.x, 0.0f, game_state->camera.direction.z) * game_state->player.current_speed * diagonal_speed_multiplier;
-            //game_state->target_orientation = quat(game_state->camera.direction);
+            if(global_input.D_KEY)
+                target_orientation_euler_angles.x += ( UP_EULER_ANGLE - ((f32)PI * 2.0f)); //shortest path (needed for diagonal movement)
+            else
+                target_orientation_euler_angles.x += UP_EULER_ANGLE;
         }
         if(global_input.S_KEY) {
+            num_keys_down++;
             if(global_input.A_KEY || global_input.D_KEY) {
                 diagonal_speed_multiplier = (f32)sin((f32)PI / 4.0f);
             }
             game_state->entities[0].world_pos -= vec3(game_state->camera.direction.x, 0.0f, game_state->camera.direction.z) * game_state->player.current_speed * diagonal_speed_multiplier;
-            //game_state->target_orientation = quat(-game_state->camera.direction);
+            target_orientation_euler_angles.x += DOWN_EULER_ANGLE;
         }
         if(global_input.A_KEY) {
+            num_keys_down++;
             game_state->entities[0].world_pos += cross(vec3(game_state->camera.direction.x, 0.0f, game_state->camera.direction.z), game_state->camera.up) * game_state->player.current_speed * diagonal_speed_multiplier;
+            target_orientation_euler_angles.x += LEFT_EULER_ANGLE;           
         }
         if(global_input.D_KEY) {
+            num_keys_down++;
             game_state->entities[0].world_pos -= cross(vec3(game_state->camera.direction.x, 0.0f, game_state->camera.direction.z), game_state->camera.up) * game_state->player.current_speed * diagonal_speed_multiplier;
+            target_orientation_euler_angles.x += RIGHT_EULER_ANGLE;          
         }
+        if(global_input.MOVEMENT_KEY_DOWN) {
+            quat target_orientation = quat(target_orientation_euler_angles / (f32)num_keys_down);
+            float rotation_speed = 0.15f;
+            game_state->entities[0].orientation = shortest_lerp(game_state->entities[0].orientation, target_orientation, rotation_speed);
+        }
+        
     }
-    
+    /*
     { //camera look around
         f32 upper_angle_constraint = dtr(25.0f);
         f32 lower_angle_constraint = dtr(160.0f);
@@ -105,7 +127,7 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
         game_state->camera.rotate(game_state->current_cam_rotation.x, Y_AXIS);
         game_state->camera.rotate(game_state->current_cam_rotation.y, CAMERA_RIGHT);
     }
-
+    */
 
     { //adjust player above above the ground
         f32 player_height = 1.25f;
