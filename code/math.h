@@ -239,6 +239,26 @@ struct quat {
     float z;
     float w;
 
+    quat() {
+        this->x = 0.0f;
+        this->y = 0.0f;
+        this->z = 0.0f;
+        this->w = 0.0f;
+    }
+    
+    quat(vec3 euler_angles) {
+        float cp = (float)cos(euler_angles.x * 0.5);
+        float sp = (float)sin(euler_angles.x * 0.5);
+        float cy = (float)cos(euler_angles.y * 0.5);
+        float sy = (float)sin(euler_angles.y * 0.5);
+        float cr = (float)cos(euler_angles.z * 0.5);
+        float sr = (float)sin(euler_angles.z * 0.5);
+
+        this->x = cy * sr * cp - sy * cr * sp;
+        this->y = cy * cr * sp + sy * sr * cp;
+        this->z = sy * cr * cp - cy * sr * sp;
+        this->w = cy * cr * cp + sy * sr * sp;
+    }
 };
 
 inline ivec2
@@ -764,35 +784,7 @@ lerp(vec3 a, vec3 b, float t) {
 
 inline bool
 ray_intersects_triangle(vec3 ro, vec3 rd, vec3 v0, vec3 v1, vec3 v2, vec3 &intersection) {
-    /*
-    intersection = vec3();
-    float epsilon = 0.00001f;
-    vec3 edge1 = v1 - v0;
-    vec3 edge2 = v2 - v0;
-    vec3 q = cross(rd, edge2);
-    float a = dot(edge1, q);
-    if(a > -epsilon && a < epsilon) 
-        return false;
     
-    float f = 1.0f / a;
-    vec3 s = ro - v0;
-    float u = f * dot(s, q);
-    if(u < 0.0f || u > 1.0f)
-        return false;
-    
-    vec3 r = cross(s, edge1);
-    float v = f * dot(rd, r);
-    if(v < 0.0f || u + v > 1.0f)
-        return false;
-    
-    float t = f * dot(edge2, r);
-    if(t > epsilon) {
-        intersection = ro + rd * t;
-        return true;
-    } else {
-        return false;
-    }
-    */
     const float EPSILON = 0.0000001f; 
     vec3 vertex0 = v0;
     vec3 vertex1 = v1;

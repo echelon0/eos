@@ -345,6 +345,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                                 
                 ShowCursor(0);
                 bool initialized = false;
+
+                vec3 test_eulers = vec3(); //TODO: remove
                 while(global_is_running) {
                     if(!initialized) {
 
@@ -365,7 +367,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         test_entity.model = model;
                         test_entity.ID = 1;
                         game_state.entities.push_back(test_entity);
-                        game_state.entities[1].world_pos.z = 100.0f;
                         
                         set_vertex_buffer(directx, game_state.entities);
                         init_game_state(&game_state);
@@ -430,6 +431,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         }
                         
                         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+                        ImGui::Text("camera_position = (%.2f, %.2f, %.2f)", game_state.camera.position.x, game_state.camera.position.y, game_state.camera.position.z);
+                        ImGui::Text("camera_direction = (%.2f, %.2f, %.2f)", game_state.camera.direction.x, game_state.camera.direction.y, game_state.camera.direction.z);
+                        ImGui::Text("player orientation = (%.2f, %.2f, %.2f, %.2f)", game_state.entities[0].orientation.x, game_state.entities[0].orientation.y, game_state.entities[0].orientation.z, game_state.entities[0].orientation.w);
                         if(picked_entity != -1) {
                             ImGui::End();
                             ImGui::Begin(game_state.entities[picked_entity].model.str_name, 0, general_imgui_window_flags);
@@ -508,6 +512,16 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
                     if(!game_paused) {
                         game_update(&game_state, directx);
+                        //TEST ROTATION
+                        quat target_orientation = quat(test_eulers);
+                        game_state.entities[0].orientation = target_orientation;
+                        test_eulers.x += 0.1f;
+                        if(test_eulers.x > 360.0f)
+                            test_eulers.x = 0.0f;
+                        if(test_eulers.y > 360.0f)
+                            test_eulers.y = 0.0f;
+                        if(test_eulers.z > 360.0f)
+                            test_eulers.z = 0.0f;
                     }
                     
                     if(!draw_frame(directx, game_state.entities, game_state.lights, game_state.camera)) break;

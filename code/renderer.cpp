@@ -50,7 +50,7 @@ struct Entity {
     unsigned int ID;
     StaticModel model;
     vec3 world_pos;
-    quat rotation;
+    quat orientation;
     bool selected; //solid wireframe on/off
 };
 
@@ -288,7 +288,7 @@ bool draw_frame(D3D_RESOURCES *directx, Array<Entity> &entities, Light *lights, 
     int vertex_draw_offset = 0;    
     for(int i = 0; i < entities.size; i++) {
         //vertex constant buffer
-        constants.model_matrix = model_transform(entities[i].world_pos, entities[i].rotation);
+        constants.model_matrix = model_transform(entities[i].world_pos, entities[i].orientation);
         constants.wire_frame_on = entities[i].selected;
         constants.entity_id = entities[i].ID;
         

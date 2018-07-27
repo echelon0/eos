@@ -6,6 +6,7 @@ struct Player {
     f32 walk_speed;
     f32 run_speed;
     f32 target_speed;
+    quat target_orientation;
 };
 
 struct GameState {
@@ -22,10 +23,13 @@ struct GameState {
 };
 
 void init_game_state(GameState *game_state) {
-    game_state->camera.position = vec3(0.0f, 20.0f, 0.0f);
+    game_state->camera.position = vec3(-30.0f, 20.0f, -30.0f);
     game_state->camera.direction = vec3(0.0f, 0.0f, 1.0f);
     game_state->camera.up = vec3(0.0f, 1.0f, 0.0f);
-    
+
+    game_state->camera.rotate(dtr(45.0f), Y_AXIS);
+    game_state->camera.rotate(dtr(30.0f), CAMERA_RIGHT);
+        
     game_state->player.walk_speed = 0.08f;
     game_state->player.run_speed = 0.15f;
     game_state->player.current_speed = game_state->player.walk_speed;
@@ -35,7 +39,7 @@ void init_game_state(GameState *game_state) {
 }
 
 void game_update(GameState *game_state, D3D_RESOURCES *directx) {
-
+    
     { //player movement
         if(global_input.SHIFT_KEY) {
             game_state->player.target_speed = game_state->player.run_speed;
@@ -49,19 +53,21 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
             if(global_input.A_KEY || global_input.D_KEY) {
                 diagonal_speed_multiplier = (f32)sin((f32)PI / 4.0f);
             }
-            game_state->camera.position += game_state->camera.direction * game_state->player.current_speed * diagonal_speed_multiplier;
+            game_state->entities[0].world_pos += vec3(game_state->camera.direction.x, 0.0f, game_state->camera.direction.z) * game_state->player.current_speed * diagonal_speed_multiplier;
+            //game_state->target_orientation = quat(game_state->camera.direction);
         }
         if(global_input.S_KEY) {
             if(global_input.A_KEY || global_input.D_KEY) {
                 diagonal_speed_multiplier = (f32)sin((f32)PI / 4.0f);
             }
-            game_state->camera.position -= game_state->camera.direction * game_state->player.walk_speed * diagonal_speed_multiplier;
+            game_state->entities[0].world_pos -= vec3(game_state->camera.direction.x, 0.0f, game_state->camera.direction.z) * game_state->player.current_speed * diagonal_speed_multiplier;
+            //game_state->target_orientation = quat(-game_state->camera.direction);
         }
         if(global_input.A_KEY) {
-            game_state->camera.position += cross(game_state->camera.direction, game_state->camera.up) * game_state->player.current_speed * diagonal_speed_multiplier;
+            game_state->entities[0].world_pos += cross(vec3(game_state->camera.direction.x, 0.0f, game_state->camera.direction.z), game_state->camera.up) * game_state->player.current_speed * diagonal_speed_multiplier;
         }
         if(global_input.D_KEY) {
-            game_state->camera.position -= cross(game_state->camera.direction, game_state->camera.up) * game_state->player.current_speed * diagonal_speed_multiplier;
+            game_state->entities[0].world_pos -= cross(vec3(game_state->camera.direction.x, 0.0f, game_state->camera.direction.z), game_state->camera.up) * game_state->player.current_speed * diagonal_speed_multiplier;
         }
     }
     
