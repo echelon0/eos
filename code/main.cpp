@@ -41,6 +41,7 @@ struct INPUT_STATE {
     bool A_KEY;
     bool S_KEY;
     bool D_KEY;
+    bool E_KEY;
     bool UP_ARROW;
     bool DOWN_ARROW;
     bool LEFT_ARROW;
@@ -112,6 +113,9 @@ LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPara
                     case 'D': {
                         global_input.D_KEY = true;
                     } break;
+                    case 'E': {
+                        global_input.E_KEY = true;
+                    } break;
                     case VK_UP: {
                         global_input.UP_ARROW = true;
                     } break;
@@ -158,6 +162,9 @@ LRESULT CALLBACK CallWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPara
                     } break;
                     case 'D': {
                         global_input.D_KEY = false;
+                    } break;
+                    case 'E': {
+                        global_input.E_KEY = false;
                     } break;
                     case VK_UP: {
                         global_input.UP_ARROW = false;
@@ -346,10 +353,13 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 //general_imgui_window_flags |= ImGuiWindowFlags_AlwaysAutoResize;
                 
                 //editor variables
+                bool can_select = false;
                 int picked_entity = -1;
                 int light_type = -1;
                                 
                 ShowCursor(0);
+                bool cursor_shown = false;
+                
                 bool initialized = false;
 
                 vec3 test_eulers = vec3(); //TODO: remove
@@ -410,16 +420,20 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     imguiIO.DeltaTime = 1.0f / FRAME_RATE;
                     imguiIO.MouseDown[0] = global_input.LEFT_MOUSE_BUTTON;
                     imguiIO.MouseDown[1] = global_input.RIGHT_MOUSE_BUTTON;
-                    imguiIO.MousePos = global_input.CURRENT_POS;                    
-
-                    bool should_show_cursor = false;
+                    imguiIO.MousePos = global_input.CURRENT_POS;
+                    
                     bool should_center_cursor = (GetActiveWindow() == window);
+                    
                     bool game_paused = false;
                     if(edit_mode) {
                         ImGui::Begin("Debug", 0, general_imgui_window_flags);
                         //enable cursor use
-                        if(global_input.CONTROL_KEY_TOGGLE) {
-                            should_show_cursor = true;
+                        can_select = global_input.CONTROL_KEY_TOGGLE;
+                        if(can_select) {
+                            if(!cursor_shown) {
+                                ShowCursor(1);
+                                cursor_shown = true;
+                            }
                             should_center_cursor = false;
                             game_paused = true;
                             
@@ -516,6 +530,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                             ImGui::Begin("Debug", 0, general_imgui_window_flags);
                         }
                         ImGui::End();
+                    } else {
+                        can_select = false;
                     }
 
                     if(!game_paused) {
@@ -541,9 +557,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         Sleep((DWORD)(FRAME_FREQUENCY - frame_duration));
                     }
                     global_iTime++;
-
-                    //configure mouse cursor
-                    ShowCursor(should_show_cursor);
+                    if(cursor_shown && !can_select) {
+                        ShowCursor(0);
+                        cursor_shown = false;
+                    }
                     if(should_center_cursor) {
                         SetCursorPos(client_center_pt.x, client_center_pt.y);
                     }

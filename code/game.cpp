@@ -28,15 +28,15 @@ struct GameState {
 };
 
 void init_game_state(GameState *game_state) {
-    game_state->camera.position = vec3(-30.0f, 20.0f, -30.0f);
+    game_state->camera.position = vec3(-25.0f, 30.0f, -25.0f);
     game_state->camera.direction = vec3(0.0f, 0.0f, 1.0f);
     game_state->camera.up = vec3(0.0f, 1.0f, 0.0f);
 
     game_state->camera.rotate(dtr(45.0f), Y_AXIS);
-    game_state->camera.rotate(dtr(30.0f), CAMERA_RIGHT);
+    game_state->camera.rotate(dtr(45.0f), CAMERA_RIGHT);
         
-    game_state->player.walk_speed = 0.08f;
-    game_state->player.run_speed = 0.15f;
+    game_state->player.walk_speed = 0.2f;
+    game_state->player.run_speed = 0.25f;
     game_state->player.current_speed = game_state->player.walk_speed;
     game_state->player.target_speed = game_state->player.current_speed;
 
@@ -92,6 +92,7 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
         }
         
     }
+
     /*
     { //camera look around
         f32 upper_angle_constraint = dtr(25.0f);
