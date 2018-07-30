@@ -362,7 +362,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 
                 bool initialized = false;
 
-                vec3 test_eulers = vec3(); //TODO: remove
                 while(global_is_running) {
                     if(!initialized) {
 
@@ -394,7 +393,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                                               game_state.entities, test_entity.ID,
                                               DIRECTIONAL_LIGHT, vec3(0.0f, 0.0f, 0.0f),
                                               0.5f, vec3(1.0f, 1.0f, 1.0f),
-                                              vec3(0.0f, -6.0f, -0.8f), 0.0f)) LOG_ERROR("S","SSSS");
+                                              vec3(0.1f, -1.0f, 0.2f), 0.0f)) LOG_ERROR("S","SSSS");
                 
                         /////////////////////////
 
@@ -455,7 +454,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         ImGui::Text("camera_position = (%.2f, %.2f, %.2f)", game_state.camera.position.x, game_state.camera.position.y, game_state.camera.position.z);
                         ImGui::Text("camera_direction = (%.2f, %.2f, %.2f)", game_state.camera.direction.x, game_state.camera.direction.y, game_state.camera.direction.z);
                         ImGui::Text("player orientation = (%.2f, %.2f, %.2f, %.2f)", game_state.entities[0].orientation.x, game_state.entities[0].orientation.y, game_state.entities[0].orientation.z, game_state.entities[0].orientation.w);
-                        ImGui::Text("current rotation = %.2f", test_eulers.x);
                         if(picked_entity != -1) {
                             ImGui::End();
                             ImGui::Begin(game_state.entities[picked_entity].model.str_name, 0, general_imgui_window_flags);
