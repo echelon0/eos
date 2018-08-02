@@ -259,6 +259,16 @@ struct quat {
         this->z = sy * cr * cp - cy * sr * sp;
         this->w = cy * cr * cp + sy * sr * sp;
     }
+
+    bool operator == (quat rhs) {
+        if(this->x != rhs.x ||
+           this->y != rhs.y ||
+           this->z != rhs.z ||
+           this->w != rhs.w) {
+            return false;
+        }
+        return true;
+    }
 };
 
 inline ivec2
@@ -316,6 +326,9 @@ magnitude(vec2 source) {
 
 inline vec2
 normalize(vec2 source) {
+    if(source == vec2())
+        return source;
+    
     vec2 result;
     float source_length = magnitude(source);
     float multiplier = 1.0f / source_length;
@@ -531,6 +544,9 @@ magnitude(vec3 source) {
 
 inline vec3
 normalize(vec3 source) {
+    if(source == vec3()) {
+        return source;
+    }
     vec3 result;
     float source_length = magnitude(source);
     float multiplier = 1.0f / source_length;
@@ -604,6 +620,9 @@ magnitude(vec4 source) {
 
 inline vec4
 normalize(vec4 source) {
+    if(source == vec4()) {
+        return source;
+    }
     vec4 result;
     float source_length = magnitude(source);
     float multiplier = 1.0f / source_length;
@@ -742,6 +761,9 @@ float magnitude(quat q) {
 }
 
 quat normalize(quat q) {
+    if(q == quat()) {
+        return q;
+    }
     return q / magnitude(q);
 }
 

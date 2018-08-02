@@ -51,6 +51,9 @@ struct Entity {
     StaticModel model;
     vec3 world_pos;
     quat orientation;
+    vec3 velocity;
+    float terminal_velocity;
+    vec3 acceleration;
     bool selected; //solid wireframe on/off
 };
 

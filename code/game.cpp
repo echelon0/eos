@@ -29,16 +29,18 @@ struct GameState {
 
 void init_game_state(GameState *game_state) {
     game_state->camera.position = vec3(-25.0f, 30.0f, -25.0f);
+//    game_state->camera.position = vec3();
     game_state->camera.direction = vec3(0.0f, 0.0f, 1.0f);
     game_state->camera.up = vec3(0.0f, 1.0f, 0.0f);
 
     game_state->camera.rotate(dtr(45.0f), Y_AXIS);
     game_state->camera.rotate(dtr(45.0f), CAMERA_RIGHT);
         
-    game_state->player.walk_speed = 0.2f;
-    game_state->player.run_speed = 0.25f;
+    game_state->player.walk_speed = 0.08f;
+    game_state->player.run_speed = 0.1f;
     game_state->player.current_speed = game_state->player.walk_speed;
     game_state->player.target_speed = game_state->player.current_speed;
+    game_state->entities[0].terminal_velocity = 0.2f;
 
     game_state->initialized = true;
 }
@@ -46,6 +48,7 @@ void init_game_state(GameState *game_state) {
 void game_update(GameState *game_state, D3D_RESOURCES *directx) {
     
     { //player movement
+        game_state->entities[0].acceleration = vec3();
         vec3 target_orientation_euler_angles = vec3();
         if(global_input.SHIFT_KEY) {
             game_state->player.target_speed = game_state->player.run_speed;
@@ -61,7 +64,7 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
             if(global_input.A_KEY || global_input.D_KEY) {
                 diagonal_speed_multiplier = (f32)sin((f32)PI / 4.0f);
             }
-            game_state->entities[0].world_pos += vec3(game_state->camera.direction.x, 0.0f, game_state->camera.direction.z) * game_state->player.current_speed * diagonal_speed_multiplier;
+            game_state->entities[0].acceleration += vec3(game_state->camera.direction.x, 0.0f, game_state->camera.direction.z) * game_state->player.current_speed * diagonal_speed_multiplier;
             if(global_input.D_KEY)
                 target_orientation_euler_angles.x += ( UP_EULER_ANGLE - ((f32)PI * 2.0f)); //shortest path (needed for diagonal movement)
             else
@@ -72,25 +75,68 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
             if(global_input.A_KEY || global_input.D_KEY) {
                 diagonal_speed_multiplier = (f32)sin((f32)PI / 4.0f);
             }
-            game_state->entities[0].world_pos -= vec3(game_state->camera.direction.x, 0.0f, game_state->camera.direction.z) * game_state->player.current_speed * diagonal_speed_multiplier;
+            game_state->entities[0].acceleration += vec3(-game_state->camera.direction.x, 0.0f, -game_state->camera.direction.z) * game_state->player.current_speed * diagonal_speed_multiplier;
             target_orientation_euler_angles.x += DOWN_EULER_ANGLE;
         }
         if(global_input.A_KEY) {
             num_keys_down++;
-            game_state->entities[0].world_pos += cross(vec3(game_state->camera.direction.x, 0.0f, game_state->camera.direction.z), game_state->camera.up) * game_state->player.current_speed * diagonal_speed_multiplier;
+            game_state->entities[0].acceleration += cross(vec3(game_state->camera.direction.x, 0.0f, game_state->camera.direction.z), game_state->camera.up) * game_state->player.current_speed * diagonal_speed_multiplier;
             target_orientation_euler_angles.x += LEFT_EULER_ANGLE;           
         }
         if(global_input.D_KEY) {
             num_keys_down++;
-            game_state->entities[0].world_pos -= cross(vec3(game_state->camera.direction.x, 0.0f, game_state->camera.direction.z), game_state->camera.up) * game_state->player.current_speed * diagonal_speed_multiplier;
+            game_state->entities[0].acceleration += cross(vec3(-game_state->camera.direction.x, 0.0f, -game_state->camera.direction.z), game_state->camera.up) * game_state->player.current_speed * diagonal_speed_multiplier;
             target_orientation_euler_angles.x += RIGHT_EULER_ANGLE;          
         }
+        game_state->entities[0].acceleration = normalize(game_state->entities[0].acceleration);
         if(global_input.MOVEMENT_KEY_DOWN) {
             quat target_orientation = quat(target_orientation_euler_angles / (f32)num_keys_down);
             float rotation_speed = 0.15f;
-            game_state->entities[0].orientation = shortest_lerp(game_state->entities[0].orientation, target_orientation, rotation_speed);
+            //game_state->entities[0].orientation = shortest_lerp(game_state->entities[0].orientation, target_orientation, rotation_speed);
         }
         
+    }
+    
+    //apply acceleration
+    for(int entity_index = 0; entity_index < game_state->entities.size; entity_index++) {
+        game_state->entities[entity_index].velocity += game_state->entities[entity_index].acceleration;
+        if(magnitude(game_state->entities[entity_index].velocity) > game_state->entities[entity_index].terminal_velocity) {
+            game_state->entities[entity_index].velocity = normalize(game_state->entities[entity_index].velocity) * game_state->entities[entity_index].terminal_velocity;
+        }
+    }
+
+    //apply velocity
+    for(int entity_index = 0; entity_index < game_state->entities.size; entity_index++) {
+        game_state->entities[entity_index].world_pos += game_state->entities[entity_index].velocity;
+    }
+
+    //friction
+    for(int entity_index = 0; entity_index < game_state->entities.size; entity_index++) {
+        vec3 friction = game_state->entities[entity_index].velocity * 0.2f;
+        game_state->entities[entity_index].velocity -= friction;
+        float EPSILON = 0.000001f;
+        if(magnitude(game_state->entities[entity_index].velocity) <= EPSILON) {
+            game_state->entities[entity_index].velocity = vec3();
+        }
+    }
+
+    //rotation
+    for(int entity_index = 0; entity_index < game_state->entities.size; entity_index++) {
+        /*
+        vec3 velocity_dir = normalize(game_state->entities[entity_index].velocity);
+        vec3 rotation_euler_angles = vec3();
+        if(abs(velocity_dir.x > 0.0f))
+            rotation_euler_angles.z = acosf(velocity_dir.y / velocity_dir.x);
+        if(abs(velocity_dir.z > 0.0f))
+            rotation_euler_angles.y = acosf(velocity_dir.x / velocity_dir.z);
+        if(abs(velocity_dir.y > 0.0f))
+            rotation_euler_angles.x = acosf(velocity_dir.z / velocity_dir.y);
+        
+        quat target_orientation = quat(rotation_euler_angles);
+        game_state->entities[0].orientation = shortest_lerp(game_state->entities[0].orientation, target_orientation, 0.1f);
+        int a = 0;
+        a++;
+        */
     }
 
     /*

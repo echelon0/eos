@@ -7,10 +7,11 @@
 #include <atlstr.h>
 /*
   TODO:
-  Entity transform/rotation
-    - Implement quaternion functions
-    - Add rotation information (quaternion) and world position to entity struct
-    - Create model-to-world view matrix in the draw function and send it to the GPU
+  Make movement and rotation more physically real
+    1) rotation based on velocity
+    2) velocity based on acceleration
+    3) vertical tilt based on acceleration
+
   Textures
   Integrate procedural effects to run on specific materials in the shader
 */
@@ -453,6 +454,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
                         ImGui::Text("camera_position = (%.2f, %.2f, %.2f)", game_state.camera.position.x, game_state.camera.position.y, game_state.camera.position.z);
                         ImGui::Text("camera_direction = (%.2f, %.2f, %.2f)", game_state.camera.direction.x, game_state.camera.direction.y, game_state.camera.direction.z);
+                        ImGui::Text("player position = (%.2f, %.2f, %.2f)", game_state.entities[0].world_pos.x, game_state.entities[0].world_pos.y, game_state.entities[0].world_pos.z);
+                        ImGui::Text("player velocity = (%.2f, %.2f, %.2f)", game_state.entities[0].velocity.x, game_state.entities[0].velocity.y, game_state.entities[0].velocity.z);
                         ImGui::Text("player orientation = (%.2f, %.2f, %.2f, %.2f)", game_state.entities[0].orientation.x, game_state.entities[0].orientation.y, game_state.entities[0].orientation.z, game_state.entities[0].orientation.w);
                         if(picked_entity != -1) {
                             ImGui::End();
