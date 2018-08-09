@@ -127,7 +127,7 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
         vec3 axis_of_rotation = cross(vec3(0.0f, 0.0f, 1.0f), normalized_velocity);
         float angle = asinf(magnitude(axis_of_rotation));
         
-        quat target_orientation = quat_from_cross_product(axis_of_rotation);
+        quat target_orientation = quat_from_vectors(vec3(0.0f, 0.0f, 1.0f), normalized_velocity);
         game_state->entities[0].orientation = shortest_lerp(game_state->entities[0].orientation, target_orientation, 0.1f);
         int a = 0;
         a++;

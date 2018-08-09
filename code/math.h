@@ -245,20 +245,6 @@ struct quat {
         this->z = 0.0f;
         this->w = 0.0f;
     }
-    
-    quat(vec3 euler_angles) {
-        float cp = (float)cos(euler_angles.x * 0.5);
-        float sp = (float)sin(euler_angles.x * 0.5);
-        float cy = (float)cos(euler_angles.y * 0.5);
-        float sy = (float)sin(euler_angles.y * 0.5);
-        float cr = (float)cos(euler_angles.z * 0.5);
-        float sr = (float)sin(euler_angles.z * 0.5);
-
-        this->x = cy * sr * cp - sy * cr * sp;
-        this->y = cy * cr * sp + sy * sr * cp;
-        this->z = sy * cr * cp - cy * sr * sp;
-        this->w = cy * cr * cp + sy * sr * sp;
-    }
 
     bool operator == (quat rhs) {
         if(this->x != rhs.x ||
@@ -745,6 +731,34 @@ operator + (quat lhs, quat rhs) {
     result.z = lhs.z + rhs.z;
     result.w = lhs.w + rhs.w;
     return result;
+}
+
+
+quat quat_from_euler_angles(vec3 euler_angles) {
+    quat result;
+    
+    float cp = (float)cos(euler_angles.x * 0.5);
+    float sp = (float)sin(euler_angles.x * 0.5);
+    float cy = (float)cos(euler_angles.y * 0.5);
+    float sy = (float)sin(euler_angles.y * 0.5);
+    float cr = (float)cos(euler_angles.z * 0.5);
+    float sr = (float)sin(euler_angles.z * 0.5);
+
+    result.x = cy * sr * cp - sy * cr * sp;
+    result.y = cy * cr * sp + sy * sr * cp;
+    result.z = sy * cr * cp - cy * sr * sp;
+    result.w = cy * cr * cp + sy * sr * sp;
+
+    return result;
+}
+
+quat quat_from_vectors(vec3 source, vec3 destination) {
+    quat result;
+    
+    vec3 axis_of_rotation = cross(source, destination);
+    float angle = asinf(magnitude(axis_of_rotation) / (magnitude(source) * magnitude(destination)));
+    axis_of_rotation = normalize(axis_of_rotation);
+    result.x = axis_of_rotation.x * (float)sin(//);
 }
 
 float dot(quat lhs, quat rhs) {

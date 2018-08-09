@@ -36,7 +36,10 @@ StaticModel load_obj(char *file_name) {
         
     FILE *obj_file_handle = fopen(file_path, "r");
     if(!obj_file_handle) {
-        LOG_ERROR("ERROR", "Cannot open .obj file");
+        char *msg = (char *)calloc(string_length("Cannot open .obj file: "), sizeof(char));
+        string_cat(msg, "Cannot open .obj file: ");
+        string_cat(msg, file_name);
+        LOG_ERROR("ERROR", msg);
         return loaded_model;
     }
 

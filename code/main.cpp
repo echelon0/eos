@@ -370,7 +370,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         Entity test_entity = {};
                         
                         //player entity
-                        model = load_obj("temp_player.obj");
+                        model = load_obj("cube.obj");
                         if(model.vertex_attributes.size == 0) { global_is_running = false; }
                         test_entity.model = model;
                         test_entity.ID = 0;
@@ -378,7 +378,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         game_state.entities[0].world_pos.y = 100.0f;
                         
                         //terrain entity
-                        model = load_obj("temp_ground.obj");
+                        model = load_obj("island.obj");
                         if(model.vertex_attributes.size == 0) { global_is_running = false; }
                         test_entity.model = model;
                         test_entity.ID = 1;
