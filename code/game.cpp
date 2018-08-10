@@ -33,7 +33,7 @@ void init_game_state(GameState *game_state) {
     game_state->camera.direction = vec3(0.0f, 0.0f, 1.0f);
     game_state->camera.up = vec3(0.0f, 1.0f, 0.0f);
 
-    game_state->camera.rotate(dtr(45.0f), Y_AXIS);
+//    game_state->camera.rotate(dtr(45.0f), Y_AXIS);
     game_state->camera.rotate(dtr(45.0f), CAMERA_RIGHT);
         
     game_state->player.walk_speed = 0.08f;
@@ -122,19 +122,19 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
 
     //rotation
     for(int entity_index = 0; entity_index < game_state->entities.size; entity_index++) {
+        if(magnitude(game_state->entities[entity_index].velocity) != 0.0f) {
+            if(game_state->entities[entity_index].velocity.z < 0.0f) {
+            vec3 normalized_velocity = normalize(game_state->entities[entity_index].velocity);
+            quat target_orientation = quat_from_vectors(vec3(0.0f, 0.0f, 1.0f), normalized_velocity);
 
-        vec3 normalized_velocity = normalize(game_state->entities[entity_index].velocity);
-        vec3 axis_of_rotation = cross(vec3(0.0f, 0.0f, 1.0f), normalized_velocity);
-        float angle = asinf(magnitude(axis_of_rotation));
-        
-        quat target_orientation = quat_from_cross_product(axis_of_rotation);
-        game_state->entities[0].orientation = shortest_lerp(game_state->entities[0].orientation, target_orientation, 0.1f);
-        int a = 0;
-        a++;
-
+            float rotation_speed = 0.2f;
+            game_state->entities[0].orientation = shortest_lerp(game_state->entities[0].orientation, target_orientation, rotation_speed);
+            }
+        }
     }
 
-    /*
+    float cam_to_player_dist = 20.0f;
+    game_state->camera.position = game_state->entities[0].world_pos;
     { //camera look around
         f32 upper_angle_constraint = dtr(25.0f);
         f32 lower_angle_constraint = dtr(160.0f);
@@ -169,7 +169,10 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
         game_state->camera.rotate(game_state->current_cam_rotation.x, Y_AXIS);
         game_state->camera.rotate(game_state->current_cam_rotation.y, CAMERA_RIGHT);
     }
-    */
+    game_state->camera.position -= (game_state->camera.direction * cam_to_player_dist);
+    float right_offset = 1.0f;
+    game_state->camera.position += (cross(game_state->camera.up, game_state->camera.direction) * right_offset);
+    
 
     { //adjust player above above the ground
         f32 player_height = 1.25f;

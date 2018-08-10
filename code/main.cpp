@@ -370,7 +370,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         Entity test_entity = {};
                         
                         //player entity
-                        model = load_obj("cube.obj");
+                        model = load_obj("temp_player.obj");
                         if(model.vertex_attributes.size == 0) { global_is_running = false; }
                         test_entity.model = model;
                         test_entity.ID = 0;

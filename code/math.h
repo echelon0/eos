@@ -243,7 +243,7 @@ struct quat {
         this->x = 0.0f;
         this->y = 0.0f;
         this->z = 0.0f;
-        this->w = 0.0f;
+        this->w = 1.0f;
     }
 
     bool operator == (quat rhs) {
@@ -544,6 +544,25 @@ normalize(vec3 source) {
     return result;
 }
 
+inline float
+find_scalar_multiple(vec3 a, vec3 b) {
+    float EPSILON = 0.000001f;
+    float cross_product_magnitude = magnitude(cross(a, b));
+    if((cross_product_magnitude < -EPSILON) || (cross_product_magnitude > EPSILON)) {
+        return 0.0f;
+    }
+    if(b.x != 0.0f) {
+        return a.x / b.x;
+    }
+    if(b.y != 0.0f) {
+        return a.y / b.y;
+    }
+    if(b.z != 0.0f) {
+        return a.z / b.z;
+    }
+    return 0.0f;
+}
+
 static void
 scale(vec3 *vector, float x, float y, float z) {
     vector->x *= x;
@@ -733,6 +752,16 @@ operator + (quat lhs, quat rhs) {
     return result;
 }
 
+float magnitude(quat q) {
+    return (float)sqrt(q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w);
+}
+
+quat normalize(quat q) {
+    if(q == quat()) {
+        return q;
+    }
+    return q / magnitude(q);
+}
 
 quat quat_from_euler_angles(vec3 euler_angles) {
     quat result;
@@ -754,11 +783,20 @@ quat quat_from_euler_angles(vec3 euler_angles) {
 
 quat quat_from_vectors(vec3 source, vec3 destination) {
     quat result;
-    
+    source = normalize(source);
+    destination = normalize(destination);
     vec3 axis_of_rotation = cross(source, destination);
-    float angle = asinf(magnitude(axis_of_rotation) / (magnitude(source) * magnitude(destination)));
-    axis_of_rotation = normalize(axis_of_rotation);
-    result.x = axis_of_rotation.x * (float)sin(//);
+    if(axis_of_rotation == vec3())
+        return quat();
+    vec3 normalized_axis = normalize(axis_of_rotation);
+    float sine_theta = find_scalar_multiple(axis_of_rotation, normalized_axis); //NOTE: potential rotation bug
+    float angle = asinf(sine_theta);
+    result.x = normalized_axis.x * sinf(angle / 2.0f);
+    result.y = normalized_axis.y * sinf(angle / 2.0f);
+    result.z = normalized_axis.z * sinf(angle / 2.0f);
+    result.w = cosf(angle / 2.0f);
+    result = normalize(result);
+    return result;
 }
 
 float dot(quat lhs, quat rhs) {
@@ -769,18 +807,6 @@ inline float
 sign(float t) {
     return (t < 0.0f)? -1.0f : 1.0f;
 }
-
-float magnitude(quat q) {
-    return (float)sqrt(q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w);
-}
-
-quat normalize(quat q) {
-    if(q == quat()) {
-        return q;
-    }
-    return q / magnitude(q);
-}
-
 
 static mat44
 rotation_matrix(quat rotation) {
