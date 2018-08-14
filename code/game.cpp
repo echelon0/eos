@@ -123,13 +123,9 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
     //rotation
     for(int entity_index = 0; entity_index < game_state->entities.size; entity_index++) {
         if(magnitude(game_state->entities[entity_index].velocity) != 0.0f) {
-            if(game_state->entities[entity_index].velocity.z < 0.0f) {
-            vec3 normalized_velocity = normalize(game_state->entities[entity_index].velocity);
-            quat target_orientation = quat_from_vectors(vec3(0.0f, 0.0f, 1.0f), normalized_velocity);
-
+            quat target_orientation = quat_from_vectors(vec3(0.0f, 0.0f, 1.0f), game_state->entities[entity_index].velocity);
             float rotation_speed = 0.2f;
             game_state->entities[0].orientation = shortest_lerp(game_state->entities[0].orientation, target_orientation, rotation_speed);
-            }
         }
     }
 

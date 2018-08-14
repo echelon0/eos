@@ -370,7 +370,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         Entity test_entity = {};
                         
                         //player entity
-                        model = load_obj("temp_player.obj");
+                        model = load_obj("cube.obj");
                         if(model.vertex_attributes.size == 0) { global_is_running = false; }
                         test_entity.model = model;
                         test_entity.ID = 0;
@@ -457,6 +457,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         ImGui::Text("player position = (%.2f, %.2f, %.2f)", game_state.entities[0].world_pos.x, game_state.entities[0].world_pos.y, game_state.entities[0].world_pos.z);
                         ImGui::Text("player velocity = (%.2f, %.2f, %.2f)", game_state.entities[0].velocity.x, game_state.entities[0].velocity.y, game_state.entities[0].velocity.z);
                         ImGui::Text("player orientation = (%.2f, %.2f, %.2f, %.2f)", game_state.entities[0].orientation.x, game_state.entities[0].orientation.y, game_state.entities[0].orientation.z, game_state.entities[0].orientation.w);
+                        ImGui::Text("rotation axis = (%.2f, %.2f, %.2f)", axis_of_rotation.x, axis_of_rotation.y, axis_of_rotation.z);
                         if(picked_entity != -1) {
                             ImGui::End();
                             ImGui::Begin(game_state.entities[picked_entity].model.str_name, 0, general_imgui_window_flags);

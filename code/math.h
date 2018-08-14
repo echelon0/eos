@@ -257,6 +257,11 @@ struct quat {
     }
 };
 
+inline float
+sign(float t) {
+    return (t < 0.0f)? -1.0f : 1.0f;
+}
+
 inline ivec2
 operator - (ivec2 lhs, ivec2 rhs) {
     ivec2 result;
@@ -780,17 +785,21 @@ quat quat_from_euler_angles(vec3 euler_angles) {
 
     return result;
 }
-
+vec3 axis_of_rotation;
 quat quat_from_vectors(vec3 source, vec3 destination) {
     quat result;
     source = normalize(source);
     destination = normalize(destination);
-    vec3 axis_of_rotation = cross(source, destination);
+    
+    axis_of_rotation = cross(source, destination);
     if(axis_of_rotation == vec3())
         return quat();
+
+
     vec3 normalized_axis = normalize(axis_of_rotation);
     float sine_theta = find_scalar_multiple(axis_of_rotation, normalized_axis); //NOTE: potential rotation bug
     float angle = asinf(sine_theta);
+    
     result.x = normalized_axis.x * sinf(angle / 2.0f);
     result.y = normalized_axis.y * sinf(angle / 2.0f);
     result.z = normalized_axis.z * sinf(angle / 2.0f);
@@ -801,11 +810,6 @@ quat quat_from_vectors(vec3 source, vec3 destination) {
 
 float dot(quat lhs, quat rhs) {
     return(lhs.x*rhs.x + lhs.y*rhs.y + lhs.z*rhs.z + lhs.w*rhs.w);
-}
-
-inline float
-sign(float t) {
-    return (t < 0.0f)? -1.0f : 1.0f;
 }
 
 static mat44
