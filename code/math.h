@@ -785,28 +785,6 @@ quat quat_from_euler_angles(vec3 euler_angles) {
 
     return result;
 }
-vec3 axis_of_rotation;
-quat quat_from_vectors(vec3 source, vec3 destination) {
-    quat result;
-    source = normalize(source);
-    destination = normalize(destination);
-    
-    axis_of_rotation = cross(source, destination);
-    if(axis_of_rotation == vec3())
-        return quat();
-
-
-    vec3 normalized_axis = normalize(axis_of_rotation);
-    float sine_theta = find_scalar_multiple(axis_of_rotation, normalized_axis); //NOTE: potential rotation bug
-    float angle = asinf(sine_theta);
-    
-    result.x = normalized_axis.x * sinf(angle / 2.0f);
-    result.y = normalized_axis.y * sinf(angle / 2.0f);
-    result.z = normalized_axis.z * sinf(angle / 2.0f);
-    result.w = cosf(angle / 2.0f);
-    result = normalize(result);
-    return result;
-}
 
 float dot(quat lhs, quat rhs) {
     return(lhs.x*rhs.x + lhs.y*rhs.y + lhs.z*rhs.z + lhs.w*rhs.w);

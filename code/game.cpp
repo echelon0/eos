@@ -123,7 +123,33 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
     //rotation
     for(int entity_index = 0; entity_index < game_state->entities.size; entity_index++) {
         if(magnitude(game_state->entities[entity_index].velocity) != 0.0f) {
-            quat target_orientation = quat_from_vectors(vec3(0.0f, 0.0f, 1.0f), game_state->entities[entity_index].velocity);
+            quat target_orientation;
+            vec3 source = vec3(0.0f, 0.0f, -1.0f);
+            vec3 destination = normalize(game_state->entities[entity_index].velocity);
+    
+            vec3 axis_of_rotation = cross(source, destination);
+            if(axis_of_rotation == vec3()) {
+                target_orientation = quat();
+            } else {
+            vec3 normalized_axis = normalize(axis_of_rotation);
+            f32 sine_theta = find_scalar_multiple(axis_of_rotation, normalized_axis); //NOTE: potential rotation bug
+            f32 angle = asinf(sine_theta);
+            f32 dot_sign = sign(dot(source, destination));
+            if((dot_sign < 0.0f)) {
+                if((angle >= 0.0f) && (angle < (f32)PI / 2.0f)) {
+                    angle = 2.0f * ((f32)PI / 2.0f - angle) + angle;
+                } else if((angle <= 0.0f) && (angle > -(f32)PI / 2.0f)) {
+                    angle = 2.0f * ((f32)PI / 2.0f + angle) + 3.0f * (f32)PI / 2.0f;                
+                }
+            }
+            
+            target_orientation.x = normalized_axis.x * sinf(angle / 2.0f);
+            target_orientation.y = normalized_axis.y * sinf(angle / 2.0f);
+            target_orientation.z = normalized_axis.z * sinf(angle / 2.0f);
+            target_orientation.w = cosf(angle / 2.0f);
+            target_orientation = normalize(target_orientation);
+            }
+            
             float rotation_speed = 0.2f;
             game_state->entities[0].orientation = shortest_lerp(game_state->entities[0].orientation, target_orientation, rotation_speed);
         }
