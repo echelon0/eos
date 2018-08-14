@@ -132,7 +132,7 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
                 target_orientation = quat();
             } else {
             vec3 normalized_axis = normalize(axis_of_rotation);
-            f32 sine_theta = find_scalar_multiple(axis_of_rotation, normalized_axis); //NOTE: potential rotation bug
+            f32 sine_theta = find_scalar_multiple(axis_of_rotation, normalized_axis);
             f32 angle = asinf(sine_theta);
             f32 dot_sign = sign(dot(source, destination));
             if((dot_sign < 0.0f)) {
