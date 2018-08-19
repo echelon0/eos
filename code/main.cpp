@@ -7,11 +7,6 @@
 #include <atlstr.h>
 /*
   TODO:
-  Make movement and rotation more physically real
-    1) rotation based on velocity
-    2) velocity based on acceleration
-    3) vertical tilt based on acceleration
-
   Textures
   Integrate procedural effects to run on specific materials in the shader
 */
@@ -370,7 +365,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         Entity test_entity = {};
                         
                         //player entity
-                        model = load_obj("temp_player.obj");
+                        model = load_obj("cube.obj");
                         if(model.vertex_attributes.size == 0) { global_is_running = false; }
                         test_entity.model = model;
                         test_entity.ID = 0;
@@ -438,7 +433,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                             game_paused = true;
                             
                             //entity picking
-                            if(global_input.LEFT_CLICKED && !ImGui::IsAnyItemHovered()) {
+                            if(global_input.LEFT_CLICKED && !imguiIO.WantCaptureMouse) {
                                 if(!read_ID3D11Texture2D(directx->picking_data, directx->picking_buffer,
                                                          directx->device, directx->immediate_context)) break;
                                 int byte_offset = (global_input.CURRENT_POS.y * directx->picking_data.RowPitch) + (global_input.CURRENT_POS.x * sizeof(int));

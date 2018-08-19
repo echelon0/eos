@@ -15,7 +15,6 @@ struct VertexAttribute {
 };
 
 struct Material {
-    vec3 ambient;
     vec3 diffuse;
     vec3 specular;
     f32 exponent;
@@ -55,6 +54,12 @@ struct Entity {
     float terminal_velocity;
     vec3 acceleration;
     bool selected; //solid wireframe on/off
+
+    f32 current_speed;
+    f32 walk_speed;
+    f32 run_speed;
+    f32 target_speed;
+    quat target_orientation;
 };
 
 #define CAMERA_RIGHT 4
@@ -130,7 +135,6 @@ struct ShaderConstants {
 };
 
 struct MaterialConstants {
-    vec4 ambient;
     vec4 diffuse;
     vec4 specular;
     f32 exponent;
@@ -309,7 +313,6 @@ bool draw_frame(D3D_RESOURCES *directx, Array<Entity> &entities, Light *lights, 
 
         //material constant buffer
         for(int mat_index = 0; mat_index < entities[i].model.materials.size; mat_index++) {
-            material_constants.ambient = vec4(entities[i].model.materials[mat_index].ambient, 1.0f);
             material_constants.diffuse = vec4(entities[i].model.materials[mat_index].diffuse, 1.0f);
             material_constants.specular = vec4(entities[i].model.materials[mat_index].specular, 1.0f);
             material_constants.exponent = entities[i].model.materials[mat_index].exponent;

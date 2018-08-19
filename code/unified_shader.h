@@ -10,7 +10,6 @@ cbuffer ShaderConstants : register(b0) {
 };
 
 cbuffer MaterialConstants : register(b1) {
-    float4 ambient;
     float4 diffuse;
     float4 specular;
     float exponent;
@@ -186,8 +185,8 @@ PS_OUT ps_main(GS_OUT input) {
         }
     }
     total_diffuse = saturate(total_diffuse);
-    total_specular = saturate(total_specular);    
-    color = ambient + diffuse * total_diffuse + specular * total_specular;
+    total_specular = saturate(total_specular);
+    color = 0.3f*float4(0.1f, 0.1f, 0.2f, 1.0f) + diffuse * total_diffuse + specular * total_specular;
     
     // solid wire frame
     if(input.wire_frame_on) {

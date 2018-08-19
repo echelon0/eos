@@ -74,12 +74,6 @@ StaticModel load_obj(char *file_name) {
             fscanf(mtl_file_handle, "%s", mat.name);
             materials.push_back(mat);
                         
-        } else if(strcmp(line_id, "Ka") == 0) { //ambient
-            fscanf(mtl_file_handle, "%f%f%f\n",
-                   &materials[materials.size - 1].mat.ambient.x,
-                   &materials[materials.size - 1].mat.ambient.y,
-                   &materials[materials.size - 1].mat.ambient.z);
-            
         } else if(strcmp(line_id, "Kd") == 0) { //diffuse
             fscanf(mtl_file_handle, "%f%f%f\n",
                    &materials[materials.size - 1].mat.diffuse.x,
@@ -176,8 +170,7 @@ StaticModel load_obj(char *file_name) {
             temp_vertices[2].normal = temp_vertices[0].normal;
             for(int i = 0; i < 3; i++) {
                 if(!materials[current_mat_index].recorded) {
-                    Material final_material = { materials[current_mat_index].mat.ambient,
-                                                materials[current_mat_index].mat.diffuse,
+                    Material final_material = { materials[current_mat_index].mat.diffuse,
                                                 materials[current_mat_index].mat.specular,
                                                 materials[current_mat_index].mat.exponent,
                                                 materials[current_mat_index].mat.dissolve,

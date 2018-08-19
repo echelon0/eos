@@ -37,7 +37,7 @@ void init_grid(Grid *grid, Array<Entity> &entities) {
     int iter_count = 0;
     grid->cell_radius = 2.0f; //TODO: Make this value changable with imgui
     VertexAttribute offset_vertex_attributes[3];
-    for(int entity_index = 0; entity_index < entities.size; entity_index++) {
+    for(int entity_index = 1; entity_index < entities.size; entity_index++) { //TODO possible bug
         for(int i = 0; i < entities[entity_index].model.vertex_attributes.size; i+=3) {
 
             //find bouding box of triangle
