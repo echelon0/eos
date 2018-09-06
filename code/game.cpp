@@ -30,7 +30,7 @@ void init_game_state(GameState *game_state) {
     game_state->player->run_speed = 0.1f;
     game_state->player->current_speed = game_state->player->walk_speed;
     game_state->player->target_speed = game_state->player->current_speed;
-    game_state->player->terminal_velocity = 0.2f;
+    game_state->player->max_ground_velocity = 0.2f;
 
     game_state->initialized = true;
 }
@@ -39,7 +39,6 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
     
     { //player movement
         game_state->player->acceleration = vec3();
-        vec3 target_orientation_euler_angles = vec3();
         if(global_input.SHIFT_KEY) {
             game_state->player->target_speed = game_state->player->run_speed;
         } else {
@@ -47,54 +46,53 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
         }
         game_state->player->current_speed = lerp(game_state->player->current_speed, game_state->player->target_speed, 0.1f);
 
-        int num_keys_down = 0;
         f32 diagonal_speed_multiplier = 1.0f;
         if(global_input.W_KEY) {
-            num_keys_down++;
             if(global_input.A_KEY || global_input.D_KEY) {
                 diagonal_speed_multiplier = (f32)sin((f32)PI / 4.0f);
             }
             game_state->player->acceleration += vec3(game_state->camera.direction.x, 0.0f, game_state->camera.direction.z) * game_state->player->current_speed * diagonal_speed_multiplier;
-            if(global_input.D_KEY)
-                target_orientation_euler_angles.x += ( UP_EULER_ANGLE - ((f32)PI * 2.0f)); //shortest path (needed for diagonal movement)
-            else
-                target_orientation_euler_angles.x += UP_EULER_ANGLE;
         }
         if(global_input.S_KEY) {
-            num_keys_down++;
             if(global_input.A_KEY || global_input.D_KEY) {
                 diagonal_speed_multiplier = (f32)sin((f32)PI / 4.0f);
             }
             game_state->player->acceleration += vec3(-game_state->camera.direction.x, 0.0f, -game_state->camera.direction.z) * game_state->player->current_speed * diagonal_speed_multiplier;
-            target_orientation_euler_angles.x += DOWN_EULER_ANGLE;
         }
         if(global_input.A_KEY) {
-            num_keys_down++;
             game_state->player->acceleration += cross(vec3(game_state->camera.direction.x, 0.0f, game_state->camera.direction.z), game_state->camera.up) * game_state->player->current_speed * diagonal_speed_multiplier;
-            target_orientation_euler_angles.x += LEFT_EULER_ANGLE;           
         }
         if(global_input.D_KEY) {
-            num_keys_down++;
             game_state->player->acceleration += cross(vec3(-game_state->camera.direction.x, 0.0f, -game_state->camera.direction.z), game_state->camera.up) * game_state->player->current_speed * diagonal_speed_multiplier;
-            target_orientation_euler_angles.x += RIGHT_EULER_ANGLE;          
         }
-        game_state->player->acceleration = normalize(game_state->player->acceleration);
     }
-    
+
+    //gravity
+    f32 g = 0.1f;
+    for(int entity_index = 0; entity_index < game_state->entities.size; entity_index++) {
+        if(entity_index == 0) //TODO: if(!static)
+            game_state->entities[entity_index].acceleration.y -= g;
+    }
+
     //apply acceleration
     for(int entity_index = 0; entity_index < game_state->entities.size; entity_index++) {
         game_state->entities[entity_index].velocity += game_state->entities[entity_index].acceleration;
-        if(magnitude(game_state->entities[entity_index].velocity) > game_state->entities[entity_index].terminal_velocity) {
-            game_state->entities[entity_index].velocity = normalize(game_state->entities[entity_index].velocity) * game_state->entities[entity_index].terminal_velocity;
+
+        //limit ground speed
+        vec2 ground_velocity = vec2(game_state->entities[entity_index].velocity.x, game_state->entities[entity_index].velocity.z);
+        if(magnitude(ground_velocity) > game_state->entities[entity_index].max_ground_velocity) {
+            ground_velocity = normalize(ground_velocity) * game_state->entities[entity_index].max_ground_velocity;
+            game_state->entities[entity_index].velocity = vec3(ground_velocity.x, game_state->entities[entity_index].velocity.y, ground_velocity.y);
+        }
+
+        //limit fall speed
+        f32 terminal_velocity = 2.0f;
+        if(abs(game_state->entities[entity_index].velocity.y) > terminal_velocity) {
+            game_state->entities[entity_index].velocity.y = sign(game_state->entities[entity_index].velocity.y) * terminal_velocity;
         }
     }
 
-    //apply velocity
-    for(int entity_index = 0; entity_index < game_state->entities.size; entity_index++) {
-        game_state->entities[entity_index].world_pos += game_state->entities[entity_index].velocity;
-    }
-
-    //friction
+    //ground friction
     for(int entity_index = 0; entity_index < game_state->entities.size; entity_index++) {
         vec3 friction = game_state->entities[entity_index].velocity * 0.2f;
         game_state->entities[entity_index].velocity -= friction;
@@ -104,12 +102,17 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
         }
     }
 
+    //apply velocity
+    for(int entity_index = 0; entity_index < game_state->entities.size; entity_index++) {
+        game_state->entities[entity_index].world_pos += game_state->entities[entity_index].velocity;
+    }
+
     //rotation
     for(int entity_index = 0; entity_index < game_state->entities.size; entity_index++) {
         if(magnitude(game_state->entities[entity_index].velocity) != 0.0f) {
             quat target_orientation;
             vec3 source = vec3(0.0f, 0.0f, -1.0f);
-            vec3 destination = normalize(game_state->entities[entity_index].velocity);
+            vec3 destination = normalize(vec3(game_state->entities[entity_index].velocity.x, 0.0f, game_state->entities[entity_index].velocity.z));
     
             vec3 axis_of_rotation = cross(source, destination);
             if(axis_of_rotation == vec3()) {
@@ -139,9 +142,10 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
         }
     }
 
-    float cam_to_player_dist = 20.0f;
-    game_state->camera.position = game_state->player->world_pos;
     { //camera look around
+        float cam_to_player_dist = 20.0f;
+        game_state->camera.position = game_state->player->world_pos;
+            
         f32 upper_angle_constraint = dtr(25.0f);
         f32 lower_angle_constraint = dtr(160.0f);
         f32 max_rotation = dtr(15.0f);
@@ -174,18 +178,41 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
         game_state->current_cam_rotation = lerp(game_state->current_cam_rotation, game_state->target_cam_rotation, cam_rotation_lerp_speed);
         game_state->camera.rotate(game_state->current_cam_rotation.x, Y_AXIS);
         game_state->camera.rotate(game_state->current_cam_rotation.y, CAMERA_RIGHT);
-    }
-    game_state->camera.position -= (game_state->camera.direction * cam_to_player_dist);
-    float right_offset = 1.0f;
-    game_state->camera.position += (cross(game_state->camera.up, game_state->camera.direction) * right_offset);
 
-    //gravity
-    {
-        for(int entity_index = 0; entity_index < game_state->entities.size; entity_index++) {
-            
+        game_state->camera.position -= (game_state->camera.direction * cam_to_player_dist);
+        float right_offset = 1.0f;
+        game_state->camera.position += (cross(game_state->camera.up, game_state->camera.direction) * right_offset);
+    }
+
+    { //collision
+        vec3 adjusted_player_position = game_state->player->world_pos;
+        int cell_index = get_cell_index(&game_state->grid, find_appropriate_cell(game_state->grid.cell_radius, vec2(game_state->player->world_pos.x, game_state->player->world_pos.z)));
+        if(cell_index != -1) {
+            f32 t = FLT_MAX;
+            for(int i = 0; i < game_state->grid.cells[cell_index].vertex_attributes.size; i+=3) {
+                vec3 intersection;
+                if(ray_intersects_triangle(game_state->player->world_pos, vec3(0.0f, -1.0f, 0.0f),
+                                           game_state->grid.cells[cell_index].vertex_attributes[i + 0].position,
+                                           game_state->grid.cells[cell_index].vertex_attributes[i + 1].position,
+                                           game_state->grid.cells[cell_index].vertex_attributes[i + 2].position,
+                                           intersection)) {
+                    vec3 ro_to_intersection = intersection - game_state->player->world_pos;
+                    if((abs(-ro_to_intersection.y) < t) && (ro_to_intersection.y < 0)) {
+                        t = -ro_to_intersection.y;
+                    }
+                }
+            }
+            if(t != FLT_MAX) {
+                game_state->player_target_y = game_state->player->world_pos.y - (t - player_height);
+            }
+        }
+
+        if((game_state->player->world_pos.y != game_state->player_target_y)) {
+            game_state->player->world_pos.y = lerp(game_state->player->world_pos.y, game_state->player_target_y, 0.2f);
         }
     }
-
+    
+    /*
     { //adjust player above above the ground        
         f32 player_height = 1.25f;
         
@@ -214,5 +241,6 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
         if((game_state->player->world_pos.y != game_state->player_target_y)) {
             game_state->player->world_pos.y = lerp(game_state->player->world_pos.y, game_state->player_target_y, 0.2f);
         }
-    }   
+    }
+    */
 }

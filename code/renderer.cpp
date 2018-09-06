@@ -45,13 +45,21 @@ struct Light {
     bool enabled;
 };
 
+struct Capsule {
+    vec3 offset;
+    f32 line_length;
+    f32 radius;
+};
+
 struct Entity {
     unsigned int ID;
     StaticModel model;
+    bool static;
+    Capsule collision_volume;
     vec3 world_pos;
     quat orientation;
     vec3 velocity;
-    float terminal_velocity;
+    float max_ground_velocity;
     vec3 acceleration;
     bool selected; //solid wireframe on/off
 

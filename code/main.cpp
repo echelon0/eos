@@ -365,17 +365,20 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         Entity test_entity = {};
                         
                         //player entity
-                        model = load_obj("cube.obj");
+                        model = load_obj("temp_player.obj");
                         if(model.vertex_attributes.size == 0) { global_is_running = false; }
                         test_entity.model = model;
+                        test_entity.static = false;
                         test_entity.ID = 0;
                         game_state.entities.push_back(test_entity);
                         game_state.entities[0].world_pos.y = 100.0f;
+                        game_state.entities[0].collision_volume = {0.0f, 1.0f, 0.5f};
                         
                         //terrain entity
                         model = load_obj("island.obj");
                         if(model.vertex_attributes.size == 0) { global_is_running = false; }
                         test_entity.model = model;
+                        test_entity.static = true;
                         test_entity.ID = 1;
                         game_state.entities.push_back(test_entity);
                         game_state.entities[1].world_pos.y -= 15.0f;
