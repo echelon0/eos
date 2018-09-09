@@ -929,19 +929,6 @@ ray_intersects_triangle(vec3 ro, vec3 rd, vec3 v0, vec3 v1, vec3 v2, vec3 &inter
         return false;
 }
 
-inline bool
-line_intersects_triangle(vec3 a, vec3 b, vec3 v0, vec3 v1, vec3 v2) {
-    vec3 rd = normalize(b - a);
-    vec3 intersection;
-    if(!ray_intersects_triangle(a, rd, v0, v1, v2, intersection)) {
-        return false;
-    }
-    if(magnitude(intersection - a) > magnitude(b - a)) {
-        return false;
-    }
-    return true;
-}
-
 inline float
 abs(float x) {
     return (x < 0)? -x : x;
