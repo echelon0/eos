@@ -66,10 +66,17 @@ struct INPUT_STATE {
     bool RIGHT_CLICKED;
 };
 
+struct EditorVariables {
+    bool can_select = false;
+    int picked_entity = -1;
+    int light_type = -1;
+};
+
 bool edit_mode = false;
 static u32 global_iTime = 0;
 static bool global_is_running;
 static INPUT_STATE global_input = {};
+static EditorVariables editor;
 
 #include "renderer.cpp"
 #include "editor.cpp"
@@ -344,14 +351,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                 ImGui_ImplDX11_Init(window, directx->device, directx->immediate_context);
                 imguiIO.DisplaySize.x = (f32)client_dim.x;
                 imguiIO.DisplaySize.y = (f32)client_dim.y;
-                
                 ImGuiWindowFlags general_imgui_window_flags = 0;
-                //general_imgui_window_flags |= ImGuiWindowFlags_AlwaysAutoResize;
-                
-                //editor variables
-                bool can_select = false;
-                int picked_entity = -1;
-                int light_type = -1;
+                general_imgui_window_flags |= ImGuiWindowFlags_AlwaysAutoResize;                
                                 
                 ShowCursor(0);
                 bool cursor_shown = false;
@@ -385,14 +386,11 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         init_grid(&game_state.grid, game_state.entities);
                         
                         //test light
-                        if(!editor::add_light(game_state.lights, game_state.num_lights,
-                                              game_state.entities, test_entity.ID,
-                                              DIRECTIONAL_LIGHT, vec3(0.0f, 0.0f, 0.0f),
-                                              0.5f, vec3(1.0f, 1.0f, 1.0f),
-                                              vec3(0.1f, -1.0f, 0.2f), 0.0f)) LOG_ERROR("S","SSSS");
-                
-                        /////////////////////////
-
+                        world_editor::add_light(game_state.lights, game_state.num_lights,
+                                                game_state.entities, test_entity.ID,
+                                                DIRECTIONAL_LIGHT, vec3(0.0f, 0.0f, 0.0f),
+                                                0.5f, vec3(1.0f, 1.0f, 1.0f),
+                                                vec3(0.1f, -1.0f, 0.2f), 0.0f);
                         initialized = true;
                     }
                     LARGE_INTEGER begin_count;
@@ -423,8 +421,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     if(edit_mode) {
                         ImGui::Begin("Debug", 0, general_imgui_window_flags);
                         //enable cursor use
-                        can_select = global_input.CONTROL_KEY_TOGGLE;
-                        if(can_select) {
+                        editor.can_select = global_input.CONTROL_KEY_TOGGLE;
+                        if(editor.can_select) {
                             if(!cursor_shown) {
                                 ShowCursor(1);
                                 cursor_shown = true;
@@ -437,57 +435,61 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                                 if(!read_ID3D11Texture2D(directx->picking_data, directx->picking_buffer,
                                                          directx->device, directx->immediate_context)) break;
                                 int byte_offset = (global_input.CURRENT_POS.y * directx->picking_data.RowPitch) + (global_input.CURRENT_POS.x * sizeof(int));
-                                picked_entity = *((int *)directx->picking_data.pData + (byte_offset / sizeof(int)));
+                                editor.picked_entity = *((int *)directx->picking_data.pData + (byte_offset / sizeof(int)));
                                 for(int i = 0; i < game_state.entities.size; i++) {
                                     game_state.entities[i].selected = false;
-                                    if(picked_entity != -1)
-                                        game_state.entities[picked_entity].selected = true;
+                                    if(editor.picked_entity != -1)
+                                        game_state.entities[editor.picked_entity].selected = true;
                                 }
                             }
                         }
-                        
+
+                        //main window
                         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-                        ImGui::Text("camera_position = (%.2f, %.2f, %.2f)", game_state.camera.position.x, game_state.camera.position.y, game_state.camera.position.z);
                         ImGui::Text("camera_direction = (%.2f, %.2f, %.2f)", game_state.camera.direction.x, game_state.camera.direction.y, game_state.camera.direction.z);
                         ImGui::Text("player position = (%.2f, %.2f, %.2f)", game_state.entities[0].world_pos.x, game_state.entities[0].world_pos.y, game_state.entities[0].world_pos.z);
                         ImGui::Text("player velocity = (%.2f, %.2f, %.2f)", game_state.entities[0].velocity.x, game_state.entities[0].velocity.y, game_state.entities[0].velocity.z);
-                        ImGui::Text("player orientation = (%.2f, %.2f, %.2f, %.2f)", game_state.entities[0].orientation.x, game_state.entities[0].orientation.y, game_state.entities[0].orientation.z, game_state.entities[0].orientation.w);
-                        if(picked_entity != -1) {
+                        
+                        if(editor.picked_entity != -1) {
                             ImGui::End();
-                            ImGui::Begin(game_state.entities[picked_entity].model.str_name, 0, general_imgui_window_flags);
-
-                            //list of lights belonging to the selected entity
-                            int light_list_curr;
-                            int total_lights = 0;
-                            char *possible_lights[3];
-                            possible_lights[0] = "DIRECTIONAL LIGHT";
-                            possible_lights[1] = "POINT LIGHT";
-                            possible_lights[2] = "SPOTLIGHT";
-                            char *light_list_items[MAX_LIGHTS];
-                            for(int i = 0; i < MAX_LIGHTS; i++) {
-                                if(game_state.lights[i].entity_ID == (u32)picked_entity) {
-                                    light_list_items[total_lights++] = possible_lights[game_state.lights[i].light_type];
-                                }
-                            }
-                            ImGui::ListBox("list", &light_list_curr, light_list_items, total_lights);
                             
-                            if(light_type == -1) {
+                            { //entity window
+                                ImGui::Begin(game_state.entities[editor.picked_entity].model.str_name, 0, general_imgui_window_flags);
+
+                                //list of lights belonging to the selected entity
+                                int light_list_curr;
+                                int total_lights = 0;
+                                char *possible_lights[3];
+                                possible_lights[0] = "DIRECTIONAL LIGHT";
+                                possible_lights[1] = "POINT LIGHT";
+                                possible_lights[2] = "SPOTLIGHT";
+                                char *light_list_items[MAX_LIGHTS];
+                                for(int i = 0; i < MAX_LIGHTS; i++) {
+                                    if(game_state.lights[i].entity_ID == editor.picked_entity) {
+                                        light_list_items[total_lights++] = possible_lights[game_state.lights[i].light_type];
+                                    }
+                                }
+                                ImGui::ListBox("list", &light_list_curr, light_list_items, total_lights);
+                            }
+                            
+                            if(editor.light_type == -1) { //list light options
                                 ImGui::Text("Add light:");
                                 ImGui::SameLine();
                                 if(ImGui::Button("Directional"))
-                                    light_type = DIRECTIONAL_LIGHT;
+                                    editor.light_type = DIRECTIONAL_LIGHT;
                                 ImGui::SameLine();
                                 if(ImGui::Button("Point"))
-                                    light_type = POINT_LIGHT;
+                                    editor.light_type = POINT_LIGHT;
                                 ImGui::SameLine();
                                 if(ImGui::Button("Spotlight"))
-                                    light_type = SPOTLIGHT;
-                            } else {
-                                if(light_type == DIRECTIONAL_LIGHT) {
+                                    editor.light_type = SPOTLIGHT;
+                                
+                            } else { //light creation window
+                                if(editor.light_type == DIRECTIONAL_LIGHT) {
                                     ImGui::Text("Add light: Directional");
-                                } else if(light_type == POINT_LIGHT) {
+                                } else if(editor.light_type == POINT_LIGHT) {
                                     ImGui::Text("Add light: Point");
-                                } else if(light_type == SPOTLIGHT){
+                                } else if(editor.light_type == SPOTLIGHT){
                                     ImGui::Text("Add light: Spotlight");
                                 }
 
@@ -499,27 +501,27 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                                 
                                 ImGui::SliderFloat("intensity", &intensity, 0.0f, 1.0f);
                                 ImGui::ColorEdit3("color", color);
-                                if(light_type != POINT_LIGHT) {
+                                if(editor.light_type != POINT_LIGHT) {
                                     ImGui::SliderFloat3("direction", direction, -1.0f, 1.0f);
                                 }
-                                if(light_type == SPOTLIGHT) {
+                                if(editor.light_type == SPOTLIGHT) {
                                     ImGui::SliderFloat("cone angle", &cone_angle, 0.0f, 1.0f);
                                 }
-                                if(light_type != DIRECTIONAL_LIGHT) {
+                                if(editor.light_type != DIRECTIONAL_LIGHT) {
                                     ImGui::SliderFloat3("position offset", pos_offset, 0.0f, 150.0f);                               
                                 }
                                 
                                 if(ImGui::Button("Add light")) {
-                                    editor::add_light(game_state.lights, game_state.num_lights,
-                                                      game_state.entities, picked_entity,
-                                                      light_type, vec3(pos_offset[0], pos_offset[1], pos_offset[2]),
+                                    world_editor::add_light(game_state.lights, game_state.num_lights,
+                                                      game_state.entities, editor.picked_entity,
+                                                      editor.light_type, vec3(pos_offset[0], pos_offset[1], pos_offset[2]),
                                                       intensity, vec3(color[0], color[1], color[2]),
                                                       vec3(direction[0], direction[1], direction[2]), cone_angle);
-                                    light_type = -1;
+                                    editor.light_type = -1;
                                 }
                                 ImGui::SameLine();
                                 if(ImGui::Button("Cancel")) {
-                                    light_type = -1;
+                                    editor.light_type = -1;
                                 }
                             }
                             ImGui::End();
@@ -527,13 +529,12 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         }
                         ImGui::End();
                     } else {
-                        can_select = false;
+                        editor.can_select = false;
                     }
 
                     if(!game_paused) {
                         game_update(&game_state, directx);
                     }
-                    
                     if(!draw_frame(directx, game_state.entities, game_state.lights, game_state.camera)) break;
                     
                     ImGui::Render();
@@ -553,7 +554,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         Sleep((DWORD)(FRAME_FREQUENCY - frame_duration));
                     }
                     global_iTime++;
-                    if(cursor_shown && !can_select) {
+                    if(cursor_shown && !editor.can_select) {
                         ShowCursor(0);
                         cursor_shown = false;
                     }

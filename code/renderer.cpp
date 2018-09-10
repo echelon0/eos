@@ -36,7 +36,7 @@ struct StaticModel {
 #define SPOTLIGHT 2
 
 struct Light {
-    u32 entity_ID;
+    int entity_ID;
     vec3 position;
     vec3 direction;
     vec3 color;

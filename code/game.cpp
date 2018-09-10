@@ -10,7 +10,7 @@ struct GameState {
     bool initialized;
     Entity *player;
     Array<Entity> entities;
-    Light lights[MAX_LIGHTS] = {0};
+    Light lights[MAX_LIGHTS];
     int num_lights;
     Grid grid;
     Camera camera;
@@ -20,6 +20,10 @@ struct GameState {
 };
 
 void init_game_state(GameState *game_state) {
+    for(int i = 0; i < MAX_LIGHTS; i++) {
+        game_state->lights[i].entity_ID = -1;
+    }
+    
     game_state->camera.position = vec3(-25.0f, 30.0f, -25.0f);
     game_state->camera.direction = vec3(0.0f, 0.0f, 1.0f);
     game_state->camera.up = vec3(0.0f, 1.0f, 0.0f);
@@ -47,10 +51,8 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
         }
         game_state->player->current_speed = lerp(game_state->player->current_speed, game_state->player->target_speed, 0.1f);
 
-        int num_keys_down = 0;
         f32 diagonal_speed_multiplier = 1.0f;
         if(global_input.W_KEY) {
-            num_keys_down++;
             if(global_input.A_KEY || global_input.D_KEY) {
                 diagonal_speed_multiplier = (f32)sin((f32)PI / 4.0f);
             }
@@ -61,7 +63,6 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
                 target_orientation_euler_angles.x += UP_EULER_ANGLE;
         }
         if(global_input.S_KEY) {
-            num_keys_down++;
             if(global_input.A_KEY || global_input.D_KEY) {
                 diagonal_speed_multiplier = (f32)sin((f32)PI / 4.0f);
             }
@@ -69,12 +70,10 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
             target_orientation_euler_angles.x += DOWN_EULER_ANGLE;
         }
         if(global_input.A_KEY) {
-            num_keys_down++;
             game_state->player->acceleration += cross(vec3(game_state->camera.direction.x, 0.0f, game_state->camera.direction.z), game_state->camera.up) * game_state->player->current_speed * diagonal_speed_multiplier;
             target_orientation_euler_angles.x += LEFT_EULER_ANGLE;           
         }
         if(global_input.D_KEY) {
-            num_keys_down++;
             game_state->player->acceleration += cross(vec3(-game_state->camera.direction.x, 0.0f, -game_state->camera.direction.z), game_state->camera.up) * game_state->player->current_speed * diagonal_speed_multiplier;
             target_orientation_euler_angles.x += RIGHT_EULER_ANGLE;          
         }
@@ -115,23 +114,23 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
             if(axis_of_rotation == vec3()) {
                 target_orientation = quat();
             } else {
-            vec3 normalized_axis = normalize(axis_of_rotation);
-            f32 sine_theta = find_scalar_multiple(axis_of_rotation, normalized_axis);
-            f32 angle = asinf(sine_theta);
-            f32 dot_sign = sign(dot(source, destination));
-            if((dot_sign < 0.0f)) {
-                if((angle >= 0.0f) && (angle < (f32)PI / 2.0f)) {
-                    angle = 2.0f * ((f32)PI / 2.0f - angle) + angle;
-                } else if((angle <= 0.0f) && (angle > -(f32)PI / 2.0f)) {
-                    angle = 2.0f * ((f32)PI / 2.0f + angle) + 3.0f * (f32)PI / 2.0f;                
+                vec3 normalized_axis = normalize(axis_of_rotation);
+                f32 sine_theta = find_scalar_multiple(axis_of_rotation, normalized_axis);
+                f32 angle = asinf(sine_theta);
+                f32 dot_sign = sign(dot(source, destination));
+                if((dot_sign < 0.0f)) {
+                    if((angle >= 0.0f) && (angle < (f32)PI / 2.0f)) {
+                        angle = 2.0f * ((f32)PI / 2.0f - angle) + angle;
+                    } else if((angle <= 0.0f) && (angle > -(f32)PI / 2.0f)) {
+                        angle = 2.0f * ((f32)PI / 2.0f + angle) + 3.0f * (f32)PI / 2.0f;                
+                    }
                 }
-            }
             
-            target_orientation.x = normalized_axis.x * sinf(angle / 2.0f);
-            target_orientation.y = normalized_axis.y * sinf(angle / 2.0f);
-            target_orientation.z = normalized_axis.z * sinf(angle / 2.0f);
-            target_orientation.w = cosf(angle / 2.0f);
-            target_orientation = normalize(target_orientation);
+                target_orientation.x = normalized_axis.x * sinf(angle / 2.0f);
+                target_orientation.y = normalized_axis.y * sinf(angle / 2.0f);
+                target_orientation.z = normalized_axis.z * sinf(angle / 2.0f);
+                target_orientation.w = cosf(angle / 2.0f);
+                target_orientation = normalize(target_orientation);
             }
             
             float rotation_speed = 0.2f;
