@@ -4,6 +4,7 @@ struct VertexAttribute {
     vec3 normal;
     vec2 texcoord;
     u32 entity_ID;
+    Array<u32> adjacent_vertex_indices;
 
     VertexAttribute operator = (VertexAttribute rhs) {
         this->position = rhs.position;
@@ -11,6 +12,16 @@ struct VertexAttribute {
         this->texcoord = rhs.texcoord;
         this->entity_ID = rhs.entity_ID;
         return *this;
+    }
+
+    bool operator == (VertexAttribute rhs) {
+        if(this->position != rhs.position ||
+           this->normal != rhs.normal ||
+           this->texcoord != rhs.texcoord ||
+           this->entity_ID != rhs.entity_ID) {
+            return false;
+        }
+        return true;
     }
 };
 
@@ -40,6 +51,7 @@ struct Light {
     vec3 position;
     vec3 direction;
     vec3 color;
+    f32 intensity;
     f32 cone_angle;
     u32 light_type;
     bool enabled;
@@ -147,12 +159,12 @@ struct ShaderLight {
     vec4 position;
     vec4 direction;
     vec4 color;
+    f32 intensity;
     f32 cone_angle;
     u32 light_type;
     bool enabled;
     u32 padding3;
-    u32 padding4;
-    vec3 padding5;
+    vec3 padding4;
 };
 
 struct LightConstants {
@@ -269,6 +281,7 @@ bool draw_frame(D3D_RESOURCES *directx, Array<Entity> &entities, Light *lights, 
         shader_light.position = vec4(lights[i].position, 1.0f);
         shader_light.direction = vec4(lights[i].direction, 1.0f);
         shader_light.color = vec4(lights[i].color, 1.0f);
+        shader_light.intensity = lights[i].intensity;
         shader_light.cone_angle = lights[i].cone_angle;
         shader_light.light_type = lights[i].light_type;
         shader_light.enabled = lights[i].enabled;
