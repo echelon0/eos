@@ -48,4 +48,13 @@ struct Array {
         }
         data[size++] = entry;
     }
+
+    bool contains(T entry) {
+        for(int i = 0; i < size; i++) {
+            if(data[i] == entry) {
+                return true;
+            }
+        }
+        return false;
+    }
 };

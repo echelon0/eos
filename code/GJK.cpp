@@ -174,14 +174,14 @@ vec3 compute_search_direction_from_feature(Array<vec3> feature, vec3 point) {
     vec3 search_direction = vec3();
     switch(feature.size) {
         case 1: { //point
-            search_direction = point - feature[0];
+            search_direction = normalize(point - feature[0]);
         } break;
 
         case 2: { //line
             vec3 a_to_b = (feature[1] - feature[0]) / magnitude(feature[1] - feature[0]);
             vec3 a_to_point = (point - feature[0]) / magnitude(point - feature[0]);
             vec3 plane_normal = normalize(cross(a_to_b, a_to_point));
-            search_direction = cross(a_to_b, plane_normal);
+            search_direction = normalize(cross(a_to_b, plane_normal));
             if(dot(a_to_point, search_direction) < 0.0f)
                 search_direction = -search_direction;
             
@@ -224,22 +224,22 @@ int support(Array<VertexAttribute> &vertices, u32 start_vertex, vec3 direction) 
 }
 
 bool GJK(Array<VertexAttribute> mesh_A, Array<VertexAttribute> mesh_B) {
-    Array<vec3> simplex = Array<vec3>;
-    vec3 support_A = support(mesh_A, 0, vec3());
-    vec3 support_B = support(mesh_B, 0, vec3());
-    vec3 support_point = support_B - support_A;
+    Array<vec3> simplex = Array<vec3>();
+    int support_A = support(mesh_A, 0, vec3());
+    int support_B = support(mesh_B, 0, vec3());
+    vec3 support_point = mesh_A[support_B].position - mesh_B[support_A].position;
     simplex.push_back(support_point);
     vec3 d = vec3();
-    while(1) {
+    for(;;) {
         simplex = closest_feature_on_simplex_to_point(simplex, vec3());
         d = compute_search_direction_from_feature(simplex, vec3());
         support_A = support(mesh_A, support_A, d);
-        support_B = support(mesh_B, support_b, d);
-        support_point = support_B - support_A;
-        
+        support_B = support(mesh_B, support_B, d);
+        support_point = mesh_A[support_B].position - mesh_B[support_A].position;
+        if(simplex.contains(support_point)) {
+            return true;
+        }
     }
-    
-    return false;
 }
 
 

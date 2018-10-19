@@ -709,7 +709,7 @@ make_scaling_matrix(float x, float y, float z, float w) {
     return mat44(x, 0.0f, 0.0f, 0.0f,
                  0.0f, y, 0.0f, 0.0f,
                  0.0f, 0.0f, z, 0.0f,
-                 0.0f, 0.0f, 0.0f, z);   
+                 0.0f, 0.0f, 0.0f, w);   
 }
 
 static mat33
