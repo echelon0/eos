@@ -103,14 +103,6 @@ void game_update(GameState *game_state, D3D_RESOURCES *directx) {
         }
     }
 
-    for(int entity_A = 0; entity_A < game_state->entities.size; entity_A++) {
-        for(int entity_B = 0; entity_B < game_state->entities.size; entity_B++) {
-            if(entity_A != entity_B) {
-                GJK(game_state->entities[entity_A].model.vertex_attributes, game_state->entities[entity_B].model.vertex_attributes);
-            }
-        }
-    }
-    
     //rotation
     for(int entity_index = 0; entity_index < game_state->entities.size; entity_index++) {
         if(magnitude(game_state->entities[entity_index].velocity) != 0.0f) {
