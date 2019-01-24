@@ -25,10 +25,6 @@ struct ivec2 {
         return (this->x == rhs.x) && (this->y == rhs.y);
     }
 
-    bool operator != (ivec2 rhs) {
-        return !(*this == rhs);
-    }
-
     ivec2 operator / (int scalar) {
         return ivec2(this->x / scalar, this->y / scalar);
     }
@@ -54,10 +50,6 @@ struct vec2 {
 
     bool operator == (vec2 rhs) {
         return (this->x == rhs.x) && (this->y == rhs.y);
-    }
-
-    bool operator != (vec2 rhs) {
-        return !(*this == rhs);
     }
 
     bool operator > (vec2 rhs) {
@@ -133,10 +125,6 @@ struct vec4 {
     }
     bool operator == (vec4 rhs) {
         return (this->x == rhs.x) && (this->y == rhs.y) && (this->z == rhs.z) && (this->w == rhs.w);
-    }
-
-    bool operator != (vec4 rhs) {
-        return !(*this == rhs);
     }
 };
 
@@ -387,15 +375,6 @@ operator - (vec3 lhs, vec3 rhs) {
     return result;    
 }
 
-inline vec3
-operator - (vec3 vector) {
-    vec3 result;
-    result.x = -vector.x;
-    result.y = -vector.y;
-    result.z = -vector.z;
-    return result;
-}
-
 inline vec4
 operator * (vec4 vector, float scaler) {
     vec4 result;
@@ -444,16 +423,6 @@ operator - (vec4 lhs, vec4 rhs) {
     result.z = lhs.z - rhs.z;
     result.w = lhs.w - rhs.w;
     return result;    
-}
-
-inline vec4
-operator - (vec4 vector) {
-    vec4 result;
-    result.x = -vector.x;
-    result.y = -vector.y;
-    result.z = -vector.z;
-    result.w = -vector.w;
-    return result;
 }
 
 inline mat44

@@ -22,12 +22,12 @@ struct Light {
     float4 position;
     float4 direction;
     float4 color;
-    float intensity;
     float cone_angle;
     uint light_type;
     bool enabled;
     uint padding3;
-    float3 padding54;
+    uint padding4;
+    float3 padding5;
 };
 
 #define MAX_LIGHTS 64
@@ -157,7 +157,8 @@ PS_OUT ps_main(GS_OUT input) {
                     float3 light_vector = (lights[i].position - input.world_space_pos).xyz;
                     float dist_to_light = length(light_vector);
                     normalize(light_vector);
-                    float attenuation = (1.0f / pow(dist_to_light, 2)) * lights[i].intensity;
+                    float brightness = 150.0f;
+                    float attenuation = (1.0f / pow(dist_to_light, 2)) * brightness;
                     float3 eye_vector = normalize(eye_position - input.world_space_pos).xyz;
                     
                     total_diffuse += calc_diffuse(light_vector, input.normal, lights[i].color) * attenuation;
@@ -168,7 +169,8 @@ PS_OUT ps_main(GS_OUT input) {
                     float3 light_vector = (lights[i].position - input.world_space_pos).xyz;
                     float dist_to_light = length(light_vector);
                     normalize(light_vector);
-                    float attenuation = (1.0f / pow(dist_to_light, 2)) * lights[i].intensity;
+                    float brightness = 150.0f;
+                    float attenuation = (1.0f / pow(dist_to_light, 2)) * brightness;
 
                     float min_cos = cos(lights[i].cone_angle);
                     float max_cos = (min_cos + 1.0f) * 2.0f;

@@ -70,8 +70,6 @@ struct EditorVariables {
     bool can_select = false;
     int picked_entity = -1;
     int light_type = -1;
-    int selected_light_index = -1;
-    bool loaded_light_info = false;
 };
 
 bool edit_mode = false;
@@ -81,7 +79,6 @@ static INPUT_STATE global_input = {};
 static EditorVariables editor;
 
 #include "renderer.cpp"
-#include "GJK.cpp"
 #include "editor.cpp"
 #include "file_loader.cpp"
 #include "game.cpp"
@@ -375,8 +372,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         test_entity.ID = 0;
                         game_state.entities.push_back(test_entity);
                         game_state.entities[0].world_pos.y = 100.0f;
-                        build_adjacency_list(game_state.entities[0].model.vertex_attributes);
-
+                        
                         //terrain entity
                         model = load_obj("island.obj");
                         if(model.vertex_attributes.size == 0) { global_is_running = false; }
@@ -384,32 +380,17 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                         test_entity.ID = 1;
                         game_state.entities.push_back(test_entity);
                         game_state.entities[1].world_pos.y -= 15.0f;
-                        build_adjacency_list(game_state.entities[0].model.vertex_attributes);
                         
                         set_vertex_buffer(directx, game_state.entities);
                         init_game_state(&game_state);
                         init_grid(&game_state.grid, game_state.entities);
                         
                         //test light
-                        world_editor::edit_light(-1, game_state.lights, game_state.num_lights,
+                        world_editor::add_light(game_state.lights, game_state.num_lights,
                                                 game_state.entities, test_entity.ID,
                                                 DIRECTIONAL_LIGHT, vec3(0.0f, 0.0f, 0.0f),
-                                                150.0f, vec3(1.0f, 1.0f, 1.0f),
+                                                0.5f, vec3(1.0f, 1.0f, 1.0f),
                                                 vec3(0.1f, -1.0f, 0.2f), 0.0f);
-
-                        //TESTING GJK
-                        //
-                        Array<vec3> test_tetrahedron = Array<vec3>();
-                        test_tetrahedron.push_back(vec3(-1.0f, 0.0f, 0.0f));
-                        test_tetrahedron.push_back(vec3(1.0f, 0.0f, 0.0f));
-                        test_tetrahedron.push_back(vec3(0.0f, 1.0f, 0.0f));
-                        test_tetrahedron.push_back(vec3(0.0f, 0.5f, 1.0f));
-                        vec3 point = vec3(0.0f, 0.5f, 0.1f);
-
-                        Array<vec3> closest_feature = closest_feature_on_simplex_to_point(test_tetrahedron, point);
-                        //
-                        /////////////
-                        
                         initialized = true;
                     }
                     LARGE_INTEGER begin_count;
@@ -482,27 +463,16 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                                 possible_lights[0] = "DIRECTIONAL LIGHT";
                                 possible_lights[1] = "POINT LIGHT";
                                 possible_lights[2] = "SPOTLIGHT";
-                                char *light_type_list[MAX_LIGHTS];
-                                int light_index_list[MAX_LIGHTS];
+                                char *light_list_items[MAX_LIGHTS];
                                 for(int i = 0; i < MAX_LIGHTS; i++) {
                                     if(game_state.lights[i].entity_ID == editor.picked_entity) {
-                                        light_type_list[total_lights] = possible_lights[game_state.lights[i].light_type];
-                                        light_index_list[total_lights++] = i;
+                                        light_list_items[total_lights++] = possible_lights[game_state.lights[i].light_type];
                                     }
                                 }
-                                if(ImGui::ListBox("list", &light_list_curr, light_type_list, total_lights)) { //select a light
-                                    for(int i = 0; i < 3; i++) {
-                                        if(strcmp(possible_lights[i], light_type_list[light_list_curr]) == 0) {
-                                            editor.light_type = i;
-                                            editor.selected_light_index = light_index_list[light_list_curr];
-                                        }
-                                    }
-                                }
+                                ImGui::ListBox("list", &light_list_curr, light_list_items, total_lights);
                             }
                             
                             if(editor.light_type == -1) { //list light options
-                                editor.selected_light_index = -1;
-                                editor.loaded_light_info = false;
                                 ImGui::Text("Add light:");
                                 ImGui::SameLine();
                                 if(ImGui::Button("Directional"))
@@ -528,23 +498,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                                 f32 color[3];
                                 f32 direction[3];
                                 f32 cone_angle;
-                                if((editor.selected_light_index != -1) && !editor.loaded_light_info) {
-                                    Light light_to_edit = game_state.lights[editor.selected_light_index];
-                                    pos_offset[0] = light_to_edit.position.x - game_state.entities[light_to_edit.entity_ID].world_pos.x;
-                                    pos_offset[1] = light_to_edit.position.y - game_state.entities[light_to_edit.entity_ID].world_pos.y;
-                                    pos_offset[2] = light_to_edit.position.z - game_state.entities[light_to_edit.entity_ID].world_pos.z;
-                                    intensity = light_to_edit.intensity;
-                                    color[0] = light_to_edit.color.x;
-                                    color[1] = light_to_edit.color.y;
-                                    color[2] = light_to_edit.color.z;
-                                    direction[0] = light_to_edit.direction.x;
-                                    direction[1] = light_to_edit.direction.y;
-                                    direction[2] = light_to_edit.direction.z;
-                                    cone_angle = light_to_edit.cone_angle;
-                                    
-                                    editor.loaded_light_info = true;
-                                }
                                 
+                                ImGui::SliderFloat("intensity", &intensity, 0.0f, 1.0f);
                                 ImGui::ColorEdit3("color", color);
                                 if(editor.light_type != POINT_LIGHT) {
                                     ImGui::SliderFloat3("direction", direction, -1.0f, 1.0f);
@@ -553,16 +508,15 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                                     ImGui::SliderFloat("cone angle", &cone_angle, 0.0f, 1.0f);
                                 }
                                 if(editor.light_type != DIRECTIONAL_LIGHT) {
-                                    ImGui::SliderFloat3("position offset", pos_offset, 0.0f, 150.0f);
-                                    ImGui::SliderFloat("intensity", &intensity, 0.0f, 500.0f);
+                                    ImGui::SliderFloat3("position offset", pos_offset, 0.0f, 150.0f);                               
                                 }
-
-                                if(ImGui::Button("Add/Edit light")) {
-                                    world_editor::edit_light(editor.selected_light_index, game_state.lights, game_state.num_lights,
-                                                            game_state.entities, editor.picked_entity,
-                                                            editor.light_type, vec3(pos_offset[0], pos_offset[1], pos_offset[2]),
-                                                            intensity, vec3(color[0], color[1], color[2]),
-                                                            vec3(direction[0], direction[1], direction[2]), cone_angle);
+                                
+                                if(ImGui::Button("Add light")) {
+                                    world_editor::add_light(game_state.lights, game_state.num_lights,
+                                                      game_state.entities, editor.picked_entity,
+                                                      editor.light_type, vec3(pos_offset[0], pos_offset[1], pos_offset[2]),
+                                                      intensity, vec3(color[0], color[1], color[2]),
+                                                      vec3(direction[0], direction[1], direction[2]), cone_angle);
                                     editor.light_type = -1;
                                 }
                                 ImGui::SameLine();
